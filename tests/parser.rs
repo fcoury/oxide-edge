@@ -53,7 +53,8 @@ fn test_parse_ping_op_msg() {
         panic!("Expected BodySection");
     };
     let doc = &section.payload;
-    println!("{:?}", doc);
+    assert_eq!(doc.get_i32("ping").unwrap(), 1);
+    assert_eq!(doc.get_str("$db").unwrap(), "admin");
 }
 
 #[test]
@@ -63,7 +64,6 @@ fn test_parse_is_master() {
     let OpCode::OpQuery(op_query) = op_query else {
         panic!("Expected OpQuery");
     };
-    println!("{:#?}", op_query.query);
     assert_eq!(op_query.query.get_i32("isMaster").unwrap(), 1);
     assert_eq!(op_query.query.get_bool("helloOk").unwrap(), true);
 }
