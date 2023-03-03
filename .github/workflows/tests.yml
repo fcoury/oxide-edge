@@ -1,6 +1,6 @@
 on: [push]
 
-name: CI
+name: Tests
 
 jobs:
   build_and_test:

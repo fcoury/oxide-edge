@@ -5,8 +5,9 @@ use nom::{
     number::complete::{le_u32, le_u8},
     IResult,
 };
+use thiserror::Error;
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct MsgHeader {
     pub message_length: u32,
     pub request_id: u32,
@@ -14,13 +15,13 @@ pub struct MsgHeader {
     pub op_code: u32,
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub enum OpCode {
     OpMsg(OpMsg),
     OpQuery(OpQuery),
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct OpQuery {
     pub header: MsgHeader,
     pub flags: u32,
@@ -31,7 +32,17 @@ pub struct OpQuery {
     pub return_field_selector: Option<Document>,
 }
 
-#[derive(Debug)]
+impl OpQuery {
+    pub fn as_documents(&self) -> Vec<Document> {
+        vec![self.query.clone()]
+    }
+
+    pub fn command(&self) -> &str {
+        self.query.keys().next().unwrap()
+    }
+}
+
+#[derive(Clone, Debug)]
 pub struct OpMsg {
     pub header: MsgHeader,
     pub flags: u32,
@@ -39,18 +50,56 @@ pub struct OpMsg {
     pub checksum: Option<u32>,
 }
 
-#[derive(Debug)]
+impl OpMsg {
+    pub fn as_documents(&self) -> Vec<Document> {
+        self.sections
+            .iter()
+            .filter_map(|section| match section {
+                Section::Body(body) => Some(body.payload.clone()),
+                Section::DocumentSequence(_) => todo!(),
+            })
+            .collect()
+    }
+
+    pub fn command(&self) -> &str {
+        match self.sections.first() {
+            Some(section) => match section {
+                Section::Body(body) => body.payload.keys().next().unwrap(),
+                Section::DocumentSequence(_) => todo!(),
+            },
+            None => "ismaster",
+        }
+    }
+}
+
+#[derive(Clone, Debug)]
 pub enum Section {
     Body(BodySection),
     DocumentSequence(DocumentSequenceSection),
 }
 
-#[derive(Debug)]
+impl Section {
+    pub fn kind(&self) -> u8 {
+        match self {
+            Section::Body(_) => 0,
+            Section::DocumentSequence(_) => 1,
+        }
+    }
+
+    pub fn documents(&self) -> Vec<Document> {
+        match self {
+            Section::Body(body) => vec![body.payload.clone()],
+            Section::DocumentSequence(sequence) => sequence.as_documents(),
+        }
+    }
+}
+
+#[derive(Clone, Debug)]
 pub struct BodySection {
     pub payload: Document,
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct DocumentSequenceSection {
     pub identifier: String,
     pub documents: Vec<Vec<u8>>,
@@ -65,7 +114,20 @@ impl DocumentSequenceSection {
     }
 }
 
-pub fn parse(input: &[u8]) -> IResult<&[u8], OpCode> {
+#[derive(Debug, Error)]
+pub enum ParserError {
+    #[error("parsing error: {0}")]
+    Error(String),
+}
+
+pub fn parse(input: Vec<u8>) -> Result<OpCode, ParserError> {
+    match parse_op_code(&input) {
+        Ok((_, msg)) => Ok(msg),
+        Err(e) => Err(ParserError::Error(e.to_string())),
+    }
+}
+
+fn parse_op_code(input: &[u8]) -> IResult<&[u8], OpCode> {
     let (input, header) = parse_header(input)?;
     match header.op_code {
         2013 => {
