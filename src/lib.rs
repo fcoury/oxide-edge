@@ -127,7 +127,7 @@ pub fn parse(input: Vec<u8>) -> Result<OpCode, ParserError> {
     }
 }
 
-fn parse_op_code(input: &[u8]) -> IResult<&[u8], OpCode> {
+pub fn parse_op_code(input: &[u8]) -> IResult<&[u8], OpCode> {
     let (input, header) = parse_header(input)?;
     match header.op_code {
         2013 => {

@@ -1,6 +1,6 @@
 use std::fs;
 
-use mongodb_wire_protocol_parser::{parse, parse_header, OpCode, Section};
+use mongodb_wire_protocol_parser::{parse_header, parse_op_code, OpCode, Section};
 
 #[test]
 fn test_parse_header() {
@@ -15,7 +15,7 @@ fn test_parse_header() {
 #[test]
 fn test_parse_list_collection_op_msg() {
     let input = fs::read("tests/fixtures/listCollections-request.bin").unwrap();
-    let (_input, op_msg) = parse(&input).unwrap();
+    let (_input, op_msg) = parse_op_code(&input).unwrap();
     let OpCode::OpMsg(op_msg) = op_msg else {
         panic!("Expected OpMsg");
     };
@@ -29,7 +29,7 @@ fn test_parse_list_collection_op_msg() {
 #[test]
 fn test_parse_insert_op_msg() {
     let input = fs::read("tests/fixtures/insert-request.bin").unwrap();
-    let (_input, op_msg) = parse(&input).unwrap();
+    let (_input, op_msg) = parse_op_code(&input).unwrap();
     let OpCode::OpMsg(op_msg) = op_msg else {
         panic!("Expected OpMsg");
     };
@@ -45,7 +45,7 @@ fn test_parse_insert_op_msg() {
 #[test]
 fn test_parse_ping_op_msg() {
     let input = fs::read("tests/fixtures/ping-request.bin").unwrap();
-    let (_input, op_msg) = parse(&input).unwrap();
+    let (_input, op_msg) = parse_op_code(&input).unwrap();
     let OpCode::OpMsg(op_msg) = op_msg else {
         panic!("Expected OpMsg");
     };
@@ -60,7 +60,7 @@ fn test_parse_ping_op_msg() {
 #[test]
 fn test_parse_is_master() {
     let input = fs::read("tests/fixtures/isMaster-request.bin").unwrap();
-    let (_input, op_query) = parse(&input).unwrap();
+    let (_input, op_query) = parse_op_code(&input).unwrap();
     let OpCode::OpQuery(op_query) = op_query else {
         panic!("Expected OpQuery");
     };
