@@ -1,17 +1,17 @@
 use std::env;
 use std::error::Error;
 
-use bson::ser;
 use futures::FutureExt;
 use mongodb_wire_protocol_parser::{parse, OpCode};
 use thiserror::Error;
-use tokio::io::{AsyncReadExt, AsyncWriteExt};
+use tokio::io::AsyncReadExt;
 use tokio::net::{TcpListener, TcpStream};
-use tracing::{debug, error, instrument, trace};
+use tracing::{error, instrument, trace};
 
-use crate::command::{run_op_msg, run_op_query, HEADER_SIZE};
+use crate::message::{OpMsg, OpQuery};
 
 mod command;
+mod message;
 mod query;
 
 #[tokio::main]
@@ -39,13 +39,10 @@ async fn main() -> Result<(), Box<dyn Error>> {
 }
 
 #[instrument(
-        name = "handle",
-        skip(inbound),
-        fields(
-            // `%` serializes the peer IP addr with `Display`
-            port = %inbound.peer_addr().unwrap().port(),
-        ),
-    )]
+    name = "handle",
+    skip(inbound),
+    fields(port = %inbound.peer_addr().unwrap().port()),
+)]
 async fn handle(mut inbound: TcpStream) -> Result<(), Box<dyn Error>> {
     loop {
         let mut data = Vec::new();
@@ -77,68 +74,8 @@ async fn handle(mut inbound: TcpStream) -> Result<(), Box<dyn Error>> {
         let msg = parse(data)?;
         trace!("MSG = {:?}", msg);
         match msg {
-            OpCode::OpMsg(msg) => {
-                if msg.sections.len() < 1 {
-                    error!("OpMsg must have at least one section");
-                    return Err(Box::new(OpMsgHandlingError::InvalidOpMsg(
-                        "OpMsg must have at least one section".to_string(),
-                    )));
-                }
-
-                let doc = run_op_msg(msg.clone())?;
-
-                let docs = ser::to_vec(&doc)?;
-                let message_length = HEADER_SIZE + 5 + docs.len() as u32;
-
-                // header
-                inbound.write_all(&message_length.to_le_bytes()).await?;
-                inbound.write_all(&0u32.to_le_bytes()).await?; // request_id
-                inbound
-                    .write_all(&msg.header.request_id.to_le_bytes())
-                    .await?; // response_to
-                inbound.write_all(&1u32.to_le_bytes()).await?; // opcode - OP_REPLY = 1
-
-                // body
-                inbound.write_all(&msg.flags.to_le_bytes()).await?; // flags
-
-                // documents
-                let section = msg.sections.get(0).unwrap();
-                inbound.write_u8(section.kind()).await?;
-
-                let bson_data: &[u8] = &docs;
-                inbound.write_all(bson_data).await?;
-
-                // TODO: checksum
-
-                inbound.flush().await?;
-                debug!("OP_MSG: [{cmd}] => {doc:?}", cmd = msg.command());
-            }
-            OpCode::OpQuery(query) => {
-                let doc = run_op_query(query.clone())?;
-
-                let docs = ser::to_vec(&doc)?;
-                let message_length = HEADER_SIZE + 20 + docs.len() as u32;
-
-                // header
-                inbound.write_all(&message_length.to_le_bytes()).await?;
-                inbound.write_all(&0u32.to_le_bytes()).await?; // request_id
-                inbound
-                    .write_all(&query.header.request_id.to_le_bytes())
-                    .await?; // response_to
-                inbound.write_all(&1u32.to_le_bytes()).await?; // opcode - OP_REPLY = 1
-
-                // reply
-                inbound.write_all(&query.flags.to_le_bytes()).await?; // flags
-                inbound.write_all(&0u64.to_le_bytes()).await?; // cursor_id
-                inbound.write_all(&0u32.to_le_bytes()).await?; // starting_from
-                inbound.write_all(&1u32.to_le_bytes()).await?; // number_returned
-
-                // documents
-                inbound.write_all(&docs).await?;
-                inbound.flush().await?;
-
-                debug!("OP_QUERY: [{cmd}] => {doc:?}", cmd = query.command());
-            }
+            OpCode::OpMsg(msg) => OpMsg(msg).handle(&mut inbound).await?,
+            OpCode::OpQuery(query) => OpQuery(query).handle(&mut inbound).await?,
         };
     }
 
