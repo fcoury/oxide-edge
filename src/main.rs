@@ -1,15 +1,17 @@
-use std::env;
 use std::error::Error;
 
+use clap::Parser;
 use futures::FutureExt;
 use mongodb_wire_protocol_parser::{parse, OpCode};
 use thiserror::Error;
-use tokio::io::AsyncReadExt;
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::{TcpListener, TcpStream};
 use tracing::{error, instrument, trace};
 
+use crate::cli::Cli;
 use crate::message::{OpMsg, OpQuery};
 
+mod cli;
 mod command;
 mod message;
 mod query;
@@ -17,16 +19,15 @@ mod query;
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
     tracing_subscriber::fmt::init();
+    let cli = Cli::parse();
+    let listen_addr = &cli.listen;
 
-    let listen_addr = env::args()
-        .nth(1)
-        .unwrap_or_else(|| "127.0.0.1:27017".to_string());
     tracing::info!("server listening on {}", listen_addr);
-    let listener = TcpListener::bind(&listen_addr).await?;
+    let listener = TcpListener::bind(listen_addr).await?;
 
     while let Ok((inbound, _)) = listener.accept().await {
         tracing::debug!("accepted connection from: {}", inbound.peer_addr()?);
-        let handler = handle(inbound).map(|r| {
+        let handler = handle(inbound, cli.clone()).map(|r| {
             if let Err(e) = r {
                 tracing::error!("error: {}", e);
             }
@@ -40,10 +41,10 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
 #[instrument(
     name = "handle",
-    skip(inbound),
+    skip(inbound, cli),
     fields(port = %inbound.peer_addr().unwrap().port()),
 )]
-async fn handle(mut inbound: TcpStream) -> Result<(), Box<dyn Error>> {
+async fn handle(mut inbound: TcpStream, cli: Cli) -> Result<(), Box<dyn Error>> {
     loop {
         let mut data = Vec::new();
 
@@ -70,6 +71,31 @@ async fn handle(mut inbound: TcpStream) -> Result<(), Box<dyn Error>> {
             }
         }
 
+        // send data to proxies
+        if let Some(proxies) = &cli.proxy {
+            for (i, proxy) in proxies.iter().enumerate() {
+                let mut proxy = TcpStream::connect(proxy).await?;
+                proxy.write_all(&data).await?;
+                proxy.flush().await?;
+
+                let mut buf = [0; 4];
+                proxy.peek(&mut buf).await?;
+                let size: u32 = u32::from_le_bytes(buf);
+                trace!("proxy {i} size = {size}");
+
+                let mut data = vec![0; size as usize];
+                proxy.read_exact(&mut data).await?;
+                trace!("proxy {i} data = {:?}", data);
+                let response_to = u32::from_le_bytes([data[8], data[9], data[10], data[11]]);
+
+                println!("size = {}", size);
+                tokio::fs::File::create(format!("dump/proxy_{i}_{response_to}.bin"))
+                    .await?
+                    .write_all(&data)
+                    .await?;
+            }
+        }
+
         trace!("DATA = {:?}", data);
         let msg = parse(data)?;
         trace!("MSG = {:?}", msg);
@@ -82,6 +108,7 @@ async fn handle(mut inbound: TcpStream) -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
+// FIXME improve this as an appwide error type
 #[derive(Debug, Error)]
 enum OpMsgHandlingError {
     #[error("invalid OP_MSG: {0}")]
