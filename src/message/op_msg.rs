@@ -1,5 +1,3 @@
-use std::error::Error;
-
 use anyhow::anyhow;
 use bson::Document;
 use mongodb_wire_protocol_parser::OpCode;
@@ -10,15 +8,15 @@ use crate::{
     command::{
         buildinfo, error, getcmdlineopts, getparameter, hello, ismaster, ping, CommandError,
     },
-    OpMsgHandlingError,
+    error::Error,
 };
 
-use super::op_msg_reply::OpMsgReply;
+use super::op_reply::OpMsgReply;
 
 pub struct OpMsg(pub mongodb_wire_protocol_parser::OpMsg);
 
 impl OpMsg {
-    pub async fn handle(self, stream: &mut TcpStream) -> Result<(), Box<dyn Error>> {
+    pub async fn handle(self, stream: &mut TcpStream) -> Result<(), Box<dyn std::error::Error>> {
         let doc = &self.run().await?;
         let cmd = &self.0.command();
         let reply = self.reply(doc)?;
@@ -32,7 +30,7 @@ impl OpMsg {
         Ok(())
     }
 
-    pub fn reply(self, doc: &Document) -> Result<OpMsgReply, Box<dyn Error>> {
+    pub fn reply(self, doc: &Document) -> Result<OpMsgReply, Box<dyn std::error::Error>> {
         let mut reply: OpMsgReply = self.0.into();
         reply.add_document(doc)?;
 
@@ -42,7 +40,7 @@ impl OpMsg {
     async fn run(&self) -> anyhow::Result<Document> {
         if self.0.sections.len() < 1 {
             error!("OpMsg must have at least one section");
-            return Err(anyhow!(OpMsgHandlingError::InvalidOpMsg(
+            return Err(anyhow!(Error::InvalidOpMsg(
                 "OpMsg must have at least one section".to_string(),
             )));
         }

@@ -439,6 +439,8 @@ dependencies = [
  "clap",
  "futures",
  "mongodb-wire-protocol-parser",
+ "serde",
+ "serde_json",
  "thiserror",
  "tokio",
  "tracing",

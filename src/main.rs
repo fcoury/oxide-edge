@@ -3,16 +3,16 @@ use std::error::Error;
 use clap::Parser;
 use futures::FutureExt;
 use mongodb_wire_protocol_parser::{parse, OpCode};
-use thiserror::Error;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::{TcpListener, TcpStream};
 use tracing::{error, instrument, trace};
 
 use crate::cli::Cli;
-use crate::message::{OpMsg, OpQuery};
+use crate::message::{OpMsg, OpQuery, OpReply};
 
 mod cli;
 mod command;
+mod error;
 mod message;
 mod query;
 
@@ -88,11 +88,11 @@ async fn handle(mut inbound: TcpStream, cli: Cli) -> Result<(), Box<dyn Error>> 
                 trace!("proxy {i} data = {:?}", data);
                 let response_to = u32::from_le_bytes([data[8], data[9], data[10], data[11]]);
 
-                println!("size = {}", size);
-                tokio::fs::File::create(format!("dump/proxy_{i}_{response_to}.bin"))
-                    .await?
-                    .write_all(&data)
-                    .await?;
+                log("bin", i, response_to, &data).await;
+
+                let msg = OpReply::parse(&data)?;
+                let json = serde_json::to_string_pretty(&msg.documents())?;
+                log("json", i, response_to, json.as_bytes()).await;
             }
         }
 
@@ -108,9 +108,16 @@ async fn handle(mut inbound: TcpStream, cli: Cli) -> Result<(), Box<dyn Error>> 
     Ok(())
 }
 
-// FIXME improve this as an appwide error type
-#[derive(Debug, Error)]
-enum OpMsgHandlingError {
-    #[error("invalid OP_MSG: {0}")]
-    InvalidOpMsg(String),
+async fn log(kind: &str, n: usize, id: u32, data: &[u8]) {
+    let file = tokio::fs::File::create(format!("dump/proxy_{n}_{id}.{kind}")).await;
+    if let Err(e) = file {
+        error!("failed to create file: {}", e);
+        return;
+    }
+    let mut file = file.unwrap();
+    let result = file.write_all(data).await;
+    if let Err(e) = result {
+        error!("failed to write to file: {}", e);
+        return;
+    }
 }
