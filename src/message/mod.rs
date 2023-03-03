@@ -1,4 +1,5 @@
 mod op_msg;
+mod op_msg_reply;
 mod op_query;
 
 pub use op_msg::OpMsg;
