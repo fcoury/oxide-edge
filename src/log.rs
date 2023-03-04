@@ -1,9 +1,9 @@
 use tokio::io::AsyncWriteExt;
 use tracing::error;
 
-pub async fn log(file_name: impl Into<String>, data: &[u8]) {
-    let file_name = file_name.into();
-    let file = tokio::fs::File::create(format!("dump/{file_name}")).await;
+pub async fn log(file_path: impl Into<String>, data: &[u8]) {
+    let file_path = file_path.into();
+    let file = tokio::fs::File::create(file_path).await;
     if let Err(e) = file {
         error!("failed to create file: {}", e);
         return;

@@ -9,6 +9,7 @@ version = "0.1.0"
 anyhow = "1.0.69"
 bson = "2.5.0"
 clap = { version = "4.1.8", features = ["derive"] }
+dotenvy = "0.15.6"
 futures = "0.3.26"
 mongodb-wire-protocol-parser = {path = "../mongodb-wire-protocol-parser"}
 serde = { version = "1.0.152", features = ["derive"] }

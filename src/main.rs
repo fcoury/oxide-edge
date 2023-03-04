@@ -1,7 +1,9 @@
 use std::error::Error;
 
 use clap::Parser;
+use dotenvy::dotenv;
 use server::Server;
+use tracing_subscriber::{EnvFilter, FmtSubscriber};
 
 use crate::cli::Cli;
 
@@ -15,8 +17,16 @@ mod server;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
-    tracing_subscriber::fmt::init();
+    dotenv().ok();
+
     let cli = Cli::parse();
+    let log_level = cli.log_level();
+    let subscriber = FmtSubscriber::builder()
+        .with_env_filter(
+            EnvFilter::try_from_default_env().or_else(|_| EnvFilter::try_new(log_level))?,
+        )
+        .finish();
+    tracing::subscriber::set_global_default(subscriber)?;
 
     let server = Server::new(cli);
     server.start().await

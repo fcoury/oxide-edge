@@ -141,9 +141,11 @@ impl Connection {
         name: impl Into<String>,
         data: &[u8],
     ) {
-        let id = id.into();
-        let kind = kind.into();
-        let name = name.into();
-        log(format!("dump/{id}-{name}.{kind}"), data).await;
+        if let Some(path) = &self.cli.dump {
+            let id = id.into();
+            let kind = kind.into();
+            let name = name.into();
+            log(format!("{path}/{id}-{name}.{kind}"), data).await;
+        }
     }
 }
