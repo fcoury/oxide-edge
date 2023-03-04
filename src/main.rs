@@ -5,14 +5,16 @@ use futures::FutureExt;
 use mongodb_wire_protocol_parser::{parse, OpCode};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::{TcpListener, TcpStream};
-use tracing::{error, instrument, trace};
+use tracing::{instrument, trace};
 
 use crate::cli::Cli;
+use crate::log::log;
 use crate::message::{OpMsg, OpQuery, OpReply};
 
 mod cli;
 mod command;
 mod error;
+mod log;
 mod message;
 mod query;
 
@@ -25,9 +27,11 @@ async fn main() -> Result<(), Box<dyn Error>> {
     tracing::info!("server listening on {}", listen_addr);
     let listener = TcpListener::bind(listen_addr).await?;
 
+    let mut id = 0;
     while let Ok((inbound, _)) = listener.accept().await {
         tracing::debug!("accepted connection from: {}", inbound.peer_addr()?);
-        let handler = handle(inbound, cli.clone()).map(|r| {
+        id += 1;
+        let handler = handle(id, inbound, cli.clone()).map(|r| {
             if let Err(e) = r {
                 tracing::error!("error: {}", e);
             }
@@ -41,11 +45,15 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
 #[instrument(
     name = "handle",
-    skip(inbound, cli),
-    fields(port = %inbound.peer_addr().unwrap().port()),
+    skip(main_id, inbound, cli),
+    fields(id = %main_id),
 )]
-async fn handle(mut inbound: TcpStream, cli: Cli) -> Result<(), Box<dyn Error>> {
+async fn handle(main_id: i32, mut inbound: TcpStream, cli: Cli) -> Result<(), Box<dyn Error>> {
+    let mut local_id = 0;
     loop {
+        local_id += 1;
+
+        let id = format!("{}-{}", main_id, local_id);
         let mut data = Vec::new();
 
         let mut buf = [0; 4];
@@ -86,45 +94,34 @@ async fn handle(mut inbound: TcpStream, cli: Cli) -> Result<(), Box<dyn Error>> 
                 let mut proxy_data = vec![0; size as usize];
                 proxy.read_exact(&mut proxy_data).await?;
                 trace!("proxy {i} data = {:?}", proxy_data);
-                let response_to = u32::from_le_bytes([
-                    proxy_data[8],
-                    proxy_data[9],
-                    proxy_data[10],
-                    proxy_data[11],
-                ]);
 
                 let msg = OpReply::parse(&proxy_data)?;
                 let json = serde_json::to_string_pretty(&msg.documents())?;
 
-                log("request.bin", i, response_to, &data).await;
-                log("bin", i, response_to, &proxy_data).await;
-                log("data", i, response_to, format!("{:#?}", msg).as_bytes()).await;
-                log("json", i, response_to, json.as_bytes()).await;
+                log(&id, "bin", "request", &data).await;
+                log(&id, "bin", format!("response-{i}"), &proxy_data).await;
+                log(
+                    &id,
+                    "txt",
+                    format!("response-{i}"),
+                    format!("{:#?}", msg).as_bytes(),
+                )
+                .await;
+                log(&id, "json", format!("response-{i}"), json.as_bytes()).await;
             }
         }
 
         trace!("DATA = {:?}", data);
         let msg = parse(data)?;
         trace!("MSG = {:?}", msg);
+
+        log(&id, "txt", "request", format!("{:#?}", msg).as_bytes()).await;
+
         match msg {
-            OpCode::OpMsg(msg) => OpMsg(msg).handle(&mut inbound).await?,
-            OpCode::OpQuery(query) => OpQuery(query).handle(&mut inbound).await?,
+            OpCode::OpMsg(msg) => OpMsg(msg).handle(&id, &mut inbound).await?,
+            OpCode::OpQuery(query) => OpQuery(query).handle(&id, &mut inbound).await?,
         };
     }
 
     Ok(())
-}
-
-async fn log(kind: &str, n: usize, id: u32, data: &[u8]) {
-    let file = tokio::fs::File::create(format!("dump/proxy_{n}_{id}.{kind}")).await;
-    if let Err(e) = file {
-        error!("failed to create file: {}", e);
-        return;
-    }
-    let mut file = file.unwrap();
-    let result = file.write_all(data).await;
-    if let Err(e) = result {
-        error!("failed to write to file: {}", e);
-        return;
-    }
 }

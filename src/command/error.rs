@@ -12,6 +12,5 @@ pub fn run(e: Box<dyn Error>) -> CommandResult {
         "codeName": "CommandNotFound",
     }];
     let doc = bson.as_document().unwrap().clone();
-    println!(" *** ERROR doc: {:?}", doc);
     Ok(doc)
 }

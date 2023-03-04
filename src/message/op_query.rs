@@ -4,14 +4,19 @@ use bson::{ser, Document};
 use mongodb_wire_protocol_parser::OpCode;
 use tokio::io::AsyncWriteExt;
 use tokio::net::TcpStream;
-use tracing::debug;
+use tracing::{debug, instrument};
 
-use crate::command::{ismaster, CommandError, HEADER_SIZE};
+use crate::{
+    command::{ismaster, CommandError, HEADER_SIZE},
+    log::log,
+};
 
+#[derive(Debug)]
 pub struct OpQuery(pub mongodb_wire_protocol_parser::OpQuery);
 
 impl OpQuery {
-    pub async fn handle(self, inbound: &mut TcpStream) -> Result<(), Box<dyn Error>> {
+    #[instrument(name = "OpQuery.handle", skip(self, inbound))]
+    pub async fn handle(self, id: &str, inbound: &mut TcpStream) -> Result<(), Box<dyn Error>> {
         let doc = self.run().await?;
 
         let query = self.0;
@@ -35,6 +40,14 @@ impl OpQuery {
         // documents
         inbound.write_all(&docs).await?;
         inbound.flush().await?;
+
+        log(
+            id,
+            "txt",
+            format!("response-oxide-{cmd}", cmd = query.command()),
+            docs.as_slice(),
+        )
+        .await;
 
         debug!("OP_QUERY: [{cmd}] => {doc:?}", cmd = query.command());
 
