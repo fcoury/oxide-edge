@@ -1,13 +1,13 @@
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use bson::{doc, Bson, Document};
+use bson::{doc, Bson};
 use mongodb_wire_protocol_parser::OpCode;
 
 use crate::command::{MAX_DOCUMENT_LEN, MAX_MSG_LEN};
 
-use super::CommandError;
+use super::CommandResult;
 
-pub fn run(_: OpCode) -> Result<Document, CommandError> {
+pub fn run(_: OpCode) -> CommandResult {
     let local_time = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .unwrap()

@@ -1,10 +1,8 @@
-use std::error::Error;
-
 use bson::Document;
 use mongodb_wire_protocol_parser::OpCode;
-use tracing::{debug, instrument};
+use tracing::{debug, instrument, trace};
 
-use crate::command::{ismaster, CommandError};
+use crate::{command::ismaster, error::Error};
 
 use super::OpQueryReply;
 
@@ -13,11 +11,11 @@ pub struct OpQuery(pub mongodb_wire_protocol_parser::OpQuery);
 
 impl OpQuery {
     #[instrument(name = "OpQuery.handle", skip(self))]
-    pub async fn handle(self) -> Result<Vec<u8>, Box<dyn Error>> {
+    pub async fn handle(self) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
         let cmd = &self.0.command();
         let doc = self.run().await?;
         let reply = self.reply(doc)?;
-        debug!("OpQuery[{cmd}] reply={reply:#?}");
+        debug!("OpQuery cmd={cmd} reply={reply:?}");
 
         Ok(reply.into())
     }
@@ -30,17 +28,17 @@ impl OpQuery {
         Ok(reply)
     }
 
-    async fn run(&self) -> Result<Document, CommandError> {
+    async fn run(&self) -> Result<Document, Error> {
         let command = match self.0.query.keys().next() {
             Some(key) => key,
             None => "ismaster",
         };
 
-        debug!("OP_QUERY command: {}", command.to_ascii_lowercase());
+        trace!("OP_QUERY command: {}", command.to_ascii_lowercase());
         let msg = OpCode::OpQuery(self.0.clone());
         match command.to_ascii_lowercase().as_ref() {
             "ismaster" => ismaster::run(msg),
-            _ => Err(CommandError::UnknownCommand(command.to_string())),
+            _ => Err(Error::UnknownCommand(command.to_string())),
         }
     }
 }

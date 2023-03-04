@@ -37,7 +37,7 @@ impl Server {
 
         let id = AtomicI32::new(0);
         while let Ok((inbound, _)) = listener.accept().await {
-            tracing::debug!("accepted connection from: {}", inbound.peer_addr()?);
+            tracing::trace!("accepted connection from: {}", inbound.peer_addr()?);
             let new_id = id.fetch_add(1, Ordering::SeqCst) + 1;
 
             let handler = {
@@ -64,6 +64,7 @@ impl Connection {
 
     #[instrument(
         name = "handle",
+        skip(self)
         fields(id = %self.id),
     )]
     async fn handle(mut self) -> Result<(), Box<dyn Error>> {

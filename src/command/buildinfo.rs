@@ -1,15 +1,15 @@
-use bson::{doc, Bson, Document};
+use bson::{doc, Bson};
 use mongodb_wire_protocol_parser::OpCode;
 
-use crate::command::MAX_DOCUMENT_LEN;
+use crate::{command::MAX_DOCUMENT_LEN, error::Error};
 
-use super::CommandError;
+use super::CommandResult;
 
 const MONGO_DB_VERSION: &str = "5.0.42";
 
-pub fn run(msg: OpCode) -> Result<Document, CommandError> {
+pub fn run(msg: OpCode) -> CommandResult {
     let OpCode::OpMsg(_) = msg else {
-            return Err(CommandError::InvalidOpCode);
+            return Err(Error::InvalidOpCode);
         };
 
     Ok(doc! {

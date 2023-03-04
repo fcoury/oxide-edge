@@ -1,12 +1,10 @@
 use anyhow::anyhow;
 use bson::Document;
 use mongodb_wire_protocol_parser::OpCode;
-use tracing::{debug, error, instrument};
+use tracing::{debug, error, instrument, trace};
 
 use crate::{
-    command::{
-        buildinfo, error, getcmdlineopts, getparameter, hello, ismaster, ping, CommandError,
-    },
+    command::{buildinfo, error, getcmdlineopts, getparameter, hello, ismaster, ping},
     error::Error,
     message::OpMsgReply,
 };
@@ -20,7 +18,7 @@ impl OpMsg {
         let cmd = &self.0.command();
         let doc = &self.run().await?;
         let reply = self.reply(doc)?;
-        debug!("OpMsg[{cmd}] reply={reply:#?}");
+        debug!("OpMsg cmd={cmd} reply={reply:?}");
 
         let data: Vec<u8> = reply.into();
 
@@ -43,7 +41,7 @@ impl OpMsg {
         }
 
         let command = self.0.command();
-        debug!("OP_MSG command: {}", command.to_ascii_lowercase());
+        trace!("OP_MSG command: {}", command.to_ascii_lowercase());
 
         let msg = OpCode::OpMsg(self.0.clone());
         let doc = match command.to_ascii_lowercase().as_ref() {
@@ -55,7 +53,7 @@ impl OpMsg {
             "hello" => hello::run()?,
             _ => {
                 error!("unknown command: {}", command);
-                error::run(Box::new(CommandError::UnknownCommand(command.to_string())))?
+                error::run(Box::new(Error::UnknownCommand(command.to_string())))?
             }
         };
 

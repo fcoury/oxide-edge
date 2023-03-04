@@ -1,11 +1,13 @@
 use bson::{doc, Bson, Document};
 use mongodb_wire_protocol_parser::OpCode;
 
-use super::{CommandError, CommandResult};
+use crate::error::Error;
+
+use super::CommandResult;
 
 pub fn run(msg: OpCode) -> CommandResult {
     let OpCode::OpMsg(msg) = msg else {
-        return Err(CommandError::InvalidOpCode);
+        return Err(Error::InvalidOpCode);
     };
 
     let docs = msg.as_documents();
