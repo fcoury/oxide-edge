@@ -13,16 +13,20 @@ pub struct Cli {
     #[clap(short, long)]
     pub proxy: Option<Vec<SocketAddr>>,
 
+    /// Defines the DuckDB database file to use
+    #[clap(short, long, value_name = "DB_FILE", env = "DATABASE_FILE")]
+    pub db: PathBuf,
+
     /// Dump requests to files on the DUMP folder
     #[clap(short = 'u', long)]
     pub dump: Option<String>,
 
     /// Tracing mode logs
-    #[clap(short, long, conflicts_with = "debug")]
+    #[clap(long, conflicts_with = "debug")]
     pub trace: bool,
 
     /// Debugging mode logs
-    #[clap(short, long)]
+    #[clap(long)]
     pub debug: bool,
 
     #[clap(subcommand)]

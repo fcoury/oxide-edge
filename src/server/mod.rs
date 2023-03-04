@@ -2,6 +2,7 @@ use std::error::Error;
 use std::sync::atomic::{AtomicI32, Ordering};
 
 use duckdb::DuckdbConnectionManager;
+use tokio::fs;
 use tokio::net::TcpListener;
 
 use crate::cli::Cli;
@@ -27,12 +28,14 @@ impl Server {
             tracing::info!("proxying to: {proxies:?}");
         }
 
-        let id = AtomicI32::new(0);
-        let manager = DuckdbConnectionManager::memory()?;
+        if let Some(path) = &self.cli.db.parent() {
+            fs::create_dir_all(path).await?;
+        }
+        let manager = DuckdbConnectionManager::file(&self.cli.db)?;
         let pool = r2d2::Pool::new(manager)?;
-
         pool.get()?.execute_batch("INSTALL 'json'; LOAD 'json';")?;
 
+        let id = AtomicI32::new(0);
         while let Ok((inbound, _)) = listener.accept().await {
             tracing::trace!("accepted connection from: {}", inbound.peer_addr()?);
             let new_id = id.fetch_add(1, Ordering::SeqCst) + 1;
