@@ -172,7 +172,6 @@ impl Into<Vec<u8>> for OpMsgReply {
         buffer.extend_from_slice(&self.header.response_to.to_le_bytes());
         buffer.extend_from_slice(&self.header.op_code.to_le_bytes());
         buffer.extend_from_slice(&self.flags.to_le_bytes());
-        buffer.extend_from_slice(&self.sections.get(0).unwrap().kind().to_le_bytes());
         let section = self.sections.get(0).unwrap();
         buffer.extend_from_slice(&section.kind().to_le_bytes());
 
