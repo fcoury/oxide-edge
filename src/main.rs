@@ -28,6 +28,10 @@ async fn main() -> Result<(), Box<dyn Error>> {
         .finish();
     tracing::subscriber::set_global_default(subscriber)?;
 
+    if cli.run_subcommand() {
+        return Ok(());
+    }
+
     let server = Server::new(cli);
     server.start().await
 }

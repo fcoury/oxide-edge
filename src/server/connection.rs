@@ -1,6 +1,8 @@
 use std::error::Error;
 
+use duckdb::DuckdbConnectionManager;
 use mongodb_wire_protocol_parser::{parse, OpCode};
+use r2d2::Pool;
 use tokio::{
     io::{AsyncReadExt, AsyncWriteExt},
     net::TcpStream,
@@ -13,16 +15,21 @@ use crate::{
     message::{OpMsg, OpQuery, OpReply},
 };
 
-#[derive(Debug)]
 pub struct Connection {
     id: i32,
     cli: Cli,
+    pool: Pool<DuckdbConnectionManager>,
     stream: TcpStream,
 }
 
 impl Connection {
-    pub fn new(id: i32, cli: Cli, stream: TcpStream) -> Self {
-        Self { id, cli, stream }
+    pub fn new(id: i32, cli: Cli, pool: &Pool<DuckdbConnectionManager>, stream: TcpStream) -> Self {
+        Self {
+            id,
+            cli,
+            pool: pool.clone(),
+            stream,
+        }
     }
 
     #[instrument(
@@ -74,9 +81,10 @@ impl Connection {
                 .await;
 
             let cmd = msg.command();
+            let db_conn = self.pool.get()?;
             let (reply, response) = match msg {
-                OpCode::OpMsg(msg) => OpMsg(msg).handle().await?,
-                OpCode::OpQuery(query) => OpQuery(query).handle().await?,
+                OpCode::OpMsg(msg) => OpMsg(msg).handle(db_conn).await?,
+                OpCode::OpQuery(query) => OpQuery(query).handle(db_conn).await?,
             };
             self.stream.write_all(&response).await?;
 

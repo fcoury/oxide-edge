@@ -1,6 +1,7 @@
-use std::net::SocketAddr;
+use std::{net::SocketAddr, path::PathBuf};
 
-use clap::Parser;
+use clap::{Parser, Subcommand};
+use mongodb_wire_protocol_parser::parse;
 
 #[derive(Parser, Debug, Clone)]
 pub struct Cli {
@@ -23,6 +24,18 @@ pub struct Cli {
     /// Debugging mode logs
     #[clap(short, long)]
     pub debug: bool,
+
+    #[clap(subcommand)]
+    pub subcommand: Option<Command>,
+}
+
+#[derive(Subcommand, Debug, Clone)]
+pub enum Command {
+    /// Parses a dump file
+    Parse {
+        /// The file to parse
+        file: PathBuf,
+    },
 }
 
 impl Cli {
@@ -34,5 +47,22 @@ impl Cli {
         } else {
             "info"
         }
+    }
+
+    pub fn run_subcommand(&self) -> bool {
+        let Some(cmd) = &self.subcommand else {
+            return false;
+        };
+
+        match cmd {
+            Command::Parse { file } => {
+                let contents = std::fs::read(file).unwrap();
+                // let header = MsgHeader::from_slice(&contents).unwrap();
+                let msg = parse(contents).unwrap();
+                println!("{msg:#?}");
+            }
+        };
+
+        true
     }
 }
