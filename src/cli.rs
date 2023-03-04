@@ -18,18 +18,18 @@ pub struct Cli {
 
     /// Tracing mode logs
     #[clap(short, long, conflicts_with = "debug")]
-    pub tracing: Option<bool>,
+    pub trace: bool,
 
     /// Debugging mode logs
     #[clap(short, long)]
-    pub debug: Option<bool>,
+    pub debug: bool,
 }
 
 impl Cli {
     pub fn log_level(&self) -> &str {
-        if self.tracing.unwrap_or(false) {
+        if self.trace {
             "trace"
-        } else if self.debug.unwrap_or(false) {
+        } else if self.debug {
             "debug"
         } else {
             "info"
