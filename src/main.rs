@@ -57,7 +57,7 @@ async fn handle(main_id: i32, mut inbound: TcpStream, cli: Cli) -> Result<(), Bo
     loop {
         local_id += 1;
 
-        let id = format!("{}-{}", main_id, local_id);
+        let id = format!("{main_id}-{local_id}");
         let mut data = Vec::new();
 
         let mut buf = [0; 4];
@@ -108,18 +108,18 @@ async fn handle(main_id: i32, mut inbound: TcpStream, cli: Cli) -> Result<(), Bo
                     &id,
                     "txt",
                     format!("response-{i}"),
-                    format!("{:#?}", msg).as_bytes(),
+                    format!("{msg:#?}").as_bytes(),
                 )
                 .await;
                 log(&id, "json", format!("response-{i}"), json.as_bytes()).await;
             }
         }
 
-        trace!("DATA = {:?}", data);
+        trace!("DATA = {data:?}");
         let msg = parse(data)?;
-        trace!("MSG = {:?}", msg);
+        trace!("MSG = {msg:?}");
 
-        log(&id, "txt", "request", format!("{:#?}", msg).as_bytes()).await;
+        log(&id, "txt", "request", format!("{msg:#?}").as_bytes()).await;
 
         match msg {
             OpCode::OpMsg(msg) => OpMsg(msg).handle(&id, &mut inbound).await?,

@@ -12,7 +12,6 @@ pub async fn log(id: impl Into<String>, kind: &str, name: impl Into<String>, dat
     let mut file = file.unwrap();
     let result = file.write_all(data).await;
     if let Err(e) = result {
-        error!("failed to write to file: {}", e);
-        return;
+        error!("failed to write to file: {}", e)
     }
 }

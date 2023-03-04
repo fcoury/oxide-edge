@@ -50,7 +50,7 @@ impl OpMsg {
     }
 
     async fn run(&self) -> anyhow::Result<Document> {
-        if self.0.sections.len() < 1 {
+        if self.0.sections.is_empty() {
             error!("OpMsg must have at least one section");
             return Err(anyhow!(Error::InvalidOpMsg(
                 "OpMsg must have at least one section".to_string(),

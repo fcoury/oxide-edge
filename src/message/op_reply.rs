@@ -57,7 +57,7 @@ impl OpReply {
     pub fn documents(&self) -> Vec<Document> {
         match self {
             OpReply::OpQuery(op_query_reply) => op_query_reply.documents.clone(),
-            OpReply::OpMsg(op_msg_reply) => op_msg_reply.documents().clone(),
+            OpReply::OpMsg(op_msg_reply) => op_msg_reply.documents(),
         }
     }
 
@@ -182,7 +182,7 @@ impl Into<Vec<u8>> for OpMsgReply {
 
         // TODO: checksum
 
-        let message_length = buffer.len() as u32 + 4 as u32;
+        let message_length = buffer.len() as u32 + 4_u32;
         buffer.splice(..0, message_length.to_le_bytes().iter().cloned());
 
         buffer
