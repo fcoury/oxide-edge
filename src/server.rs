@@ -16,7 +16,7 @@ pub struct Server {
 }
 
 #[derive(Debug, Clone)]
-pub struct Request {
+pub struct Connection {
     id: i32,
     cli: Cli,
 }
@@ -40,7 +40,7 @@ impl Server {
             let new_id = id.fetch_add(1, Ordering::SeqCst) + 1;
 
             let handler = {
-                let request = Request::new(new_id, self.cli.clone());
+                let request = Connection::new(new_id, self.cli.clone());
                 async move {
                     let result = request.handle(inbound).await;
                     if let Err(e) = result {
@@ -56,7 +56,7 @@ impl Server {
     }
 }
 
-impl Request {
+impl Connection {
     pub fn new(id: i32, cli: Cli) -> Self {
         Self { id, cli }
     }
