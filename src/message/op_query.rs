@@ -14,9 +14,10 @@ pub struct OpQuery(pub mongodb_wire_protocol_parser::OpQuery);
 impl OpQuery {
     #[instrument(name = "OpQuery.handle", skip(self))]
     pub async fn handle(self) -> Result<Vec<u8>, Box<dyn Error>> {
+        let cmd = &self.0.command();
         let doc = self.run().await?;
         let reply = self.reply(doc)?;
-        debug!("OpQuery reply={:#?}", reply);
+        debug!("OpQuery[{cmd}] reply={reply:#?}");
 
         Ok(reply.into())
     }

@@ -108,18 +108,10 @@ impl Connection {
 
             log(&id, "txt", "request", format!("{msg:#?}").as_bytes()).await;
 
-            let (cmd, response) = match msg {
-                OpCode::OpMsg(msg) => {
-                    let cmd = msg.command();
-                    let response = OpMsg(msg).handle().await?;
-
-                    (cmd, response)
-                }
-                OpCode::OpQuery(query) => {
-                    let cmd = query.command();
-                    let response = OpQuery(query).handle().await?;
-                    (cmd, response)
-                }
+            let cmd = msg.command();
+            let response = match msg {
+                OpCode::OpMsg(msg) => OpMsg(msg).handle().await?,
+                OpCode::OpQuery(query) => OpQuery(query).handle().await?,
             };
             self.stream.write_all(&response).await?;
 

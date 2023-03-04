@@ -17,19 +17,14 @@ pub struct OpMsg(pub mongodb_wire_protocol_parser::OpMsg);
 impl OpMsg {
     #[instrument(name = "OpMsg.handle", skip(self))]
     pub async fn handle(self) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
+        let cmd = &self.0.command();
         let doc = &self.run().await?;
-        let cmd = &self.command();
         let reply = self.reply(doc)?;
+        debug!("OpMsg[{cmd}] reply={reply:#?}");
 
         let data: Vec<u8> = reply.into();
 
-        debug!("OP_MSG: [{cmd}] => ({size}) {doc:?}", size = data.len());
-
         Ok(data)
-    }
-
-    pub fn command(&self) -> String {
-        self.0.command()
     }
 
     pub fn reply(self, doc: &Document) -> Result<OpMsgReply, Box<dyn std::error::Error>> {
