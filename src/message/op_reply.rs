@@ -195,7 +195,7 @@ impl From<mongodb_wire_protocol_parser::OpMsg> for OpMsgReply {
             message_length: 0,
             request_id: 0,
             response_to: msg.header.request_id,
-            op_code: 1,
+            op_code: msg.header.op_code,
         };
 
         OpMsgReply {
