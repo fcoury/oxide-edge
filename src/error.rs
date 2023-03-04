@@ -15,6 +15,8 @@ pub enum Error {
     Document(ValueAccessError),
     #[error("serde error: {0}")]
     Serde(serde_json::Error),
+    #[error("bson error: {0}")]
+    Bson(bson::ser::Error),
     #[error("unexpected error: {0}")]
     Unexpected(Box<dyn std::error::Error>),
 }
@@ -40,5 +42,11 @@ impl From<ValueAccessError> for Error {
 impl From<serde_json::Error> for Error {
     fn from(error: serde_json::Error) -> Self {
         Error::Serde(error)
+    }
+}
+
+impl From<bson::ser::Error> for Error {
+    fn from(error: bson::ser::Error) -> Self {
+        Error::Bson(error)
     }
 }

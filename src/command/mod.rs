@@ -7,6 +7,7 @@ use crate::error::Error;
 
 pub mod buildinfo;
 pub mod error;
+pub mod find;
 pub mod getcmdlineopts;
 pub mod getparameter;
 pub mod hello;
@@ -29,6 +30,7 @@ pub enum Command {
     ListDatabases,
     Ping,
     Insert,
+    Find,
 }
 
 impl Command {
@@ -53,6 +55,7 @@ impl Command {
             "ping" => Some(Command::Ping),
             "listdatabases" => Some(Command::ListDatabases),
             "insert" => Some(Command::Insert),
+            "find" => Some(Command::Find),
             _ => None,
         }
     }
@@ -71,6 +74,7 @@ impl Command {
             Command::Ping => ping::run(),
             Command::ListDatabases => listdatabases::run(op_code, db_conn),
             Command::Insert => insert::run(op_code, db_conn),
+            Command::Find => find::run(op_code, db_conn),
         }
     }
 }

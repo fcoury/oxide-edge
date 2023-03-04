@@ -34,6 +34,29 @@ pub fn query_one<T: duckdb::types::FromSql>(
     Ok(res)
 }
 
+pub fn insert(
+    pool: &r2d2::Pool<DuckdbConnectionManager>,
+    schema: &str,
+    table: &str,
+    data: serde_json::Value,
+) -> Result<(), Box<dyn Error>> {
+    let db_conn = pool.get()?;
+
+    db_conn.execute_batch(&format!(
+        r"
+            CREATE SCHEMA IF NOT EXISTS {schema};
+            CREATE TABLE IF NOT EXISTS {schema}.{table} (data JSON);
+            "
+    ))?;
+
+    db_conn.execute(
+        &format!("INSERT INTO {schema}.{table} VALUES (?);"),
+        [&data],
+    )?;
+
+    Ok(())
+}
+
 pub fn get_msg_from_fixture(fixture: &str) -> Result<OpCode, Box<dyn Error>> {
     Ok(parse(fs::read(format!("tests/fixtures/{fixture}.bin"))?)?)
 }

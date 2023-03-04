@@ -19,7 +19,7 @@ pub struct Cli {
 
     /// Dump requests to files on the DUMP folder
     #[clap(short = 'u', long)]
-    pub dump: Option<String>,
+    pub dump: Option<Option<PathBuf>>,
 
     /// Tracing mode logs
     #[clap(long, conflicts_with = "debug")]
@@ -68,5 +68,22 @@ impl Cli {
         };
 
         true
+    }
+
+    pub fn dump_path(&self) -> Option<String> {
+        let path = match &self.dump {
+            Some(Some(path)) => Some(path.into()),
+            Some(None) => Some(PathBuf::from("dump")),
+            None => None,
+        };
+
+        if let Some(path) = path {
+            if !path.exists() {
+                std::fs::create_dir_all(&path).unwrap();
+            }
+            Some(path.to_str().unwrap().to_string())
+        } else {
+            None
+        }
     }
 }

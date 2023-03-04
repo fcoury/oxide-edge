@@ -162,7 +162,7 @@ impl Connection {
         name: impl Into<String>,
         data: &[u8],
     ) {
-        if let Some(path) = &self.cli.dump {
+        if let Some(path) = &self.cli.dump_path() {
             let id = id.into();
             let kind = kind.into();
             let name = name.into();
