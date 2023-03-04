@@ -1,23 +1,22 @@
 use bson::Document;
 use mongodb_wire_protocol_parser::OpCode;
-use tracing::{debug, instrument, trace};
+use tracing::{instrument, trace};
 
 use crate::{command::ismaster, error::Error};
 
-use super::OpQueryReply;
+use super::{OpQueryReply, OpReply};
 
 #[derive(Debug)]
 pub struct OpQuery(pub mongodb_wire_protocol_parser::OpQuery);
 
 impl OpQuery {
     #[instrument(name = "OpQuery.handle", skip(self))]
-    pub async fn handle(self) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
-        let cmd = &self.0.command();
+    pub async fn handle(self) -> Result<(OpReply, Vec<u8>), Box<dyn std::error::Error>> {
         let doc = self.run().await?;
         let reply = self.reply(doc)?;
-        debug!("OpQuery cmd={cmd} reply={reply:?}");
 
-        Ok(reply.into())
+        let data: Vec<u8> = reply.clone().into();
+        Ok((OpReply::OpQuery(reply), data))
     }
 
     pub fn reply(self, doc: Document) -> Result<OpQueryReply, Box<dyn std::error::Error>> {

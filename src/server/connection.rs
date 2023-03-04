@@ -5,7 +5,7 @@ use tokio::{
     io::{AsyncReadExt, AsyncWriteExt},
     net::TcpStream,
 };
-use tracing::{instrument, trace};
+use tracing::{debug, instrument, trace};
 
 use crate::{
     cli::Cli,
@@ -64,7 +64,7 @@ impl Connection {
             }
 
             // send data to proxies
-            self.send_to_proxies(&id, &data).await?;
+            let proxy_responses = self.send_to_proxies(&id, &data).await?;
 
             trace!("DATA = {data:?}");
             let msg = parse(data)?;
@@ -74,11 +74,21 @@ impl Connection {
                 .await;
 
             let cmd = msg.command();
-            let response = match msg {
+            let (reply, response) = match msg {
                 OpCode::OpMsg(msg) => OpMsg(msg).handle().await?,
                 OpCode::OpQuery(query) => OpQuery(query).handle().await?,
             };
             self.stream.write_all(&response).await?;
+
+            let proxy_responses = proxy_responses
+                .iter()
+                .map(|data| OpReply::parse(data))
+                .collect::<Result<Vec<_>, _>>()?;
+            if proxy_responses.is_empty() {
+                debug!("cmd={cmd} reply={reply:?}");
+            } else {
+                debug!("\n  cmd={cmd}\n  reply={reply:?}\n  proxies={proxy_responses:?}");
+            }
 
             self.log(
                 id,
@@ -95,9 +105,10 @@ impl Connection {
         Ok(())
     }
 
-    async fn send_to_proxies(&self, id: &str, data: &[u8]) -> Result<(), Box<dyn Error>> {
+    async fn send_to_proxies(&self, id: &str, data: &[u8]) -> Result<Vec<Vec<u8>>, Box<dyn Error>> {
+        let mut responses = vec![];
         let Some(proxies) = &self.cli.proxy else {
-            return Ok(());
+            return Ok(responses);
         };
 
         for (i, proxy) in proxies.iter().enumerate() {
@@ -129,9 +140,11 @@ impl Connection {
             .await;
             self.log(id, "json", format!("response-{i}"), json.as_bytes())
                 .await;
+
+            responses.push(proxy_data);
         }
 
-        Ok(())
+        Ok(responses)
     }
 
     pub async fn log(

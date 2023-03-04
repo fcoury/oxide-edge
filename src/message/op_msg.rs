@@ -1,7 +1,7 @@
 use anyhow::anyhow;
 use bson::Document;
 use mongodb_wire_protocol_parser::OpCode;
-use tracing::{debug, error, instrument, trace};
+use tracing::{error, instrument, trace};
 
 use crate::{
     command::{buildinfo, error, getcmdlineopts, getparameter, hello, ismaster, ping},
@@ -9,20 +9,20 @@ use crate::{
     message::OpMsgReply,
 };
 
+use super::OpReply;
+
 #[derive(Debug)]
 pub struct OpMsg(pub mongodb_wire_protocol_parser::OpMsg);
 
 impl OpMsg {
     #[instrument(name = "OpMsg.handle", skip(self))]
-    pub async fn handle(self) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
-        let cmd = &self.0.command();
+    pub async fn handle(self) -> Result<(OpReply, Vec<u8>), Box<dyn std::error::Error>> {
         let doc = &self.run().await?;
         let reply = self.reply(doc)?;
-        debug!("OpMsg cmd={cmd} reply={reply:?}");
 
-        let data: Vec<u8> = reply.into();
+        let data: Vec<u8> = reply.clone().into();
 
-        Ok(data)
+        Ok((OpReply::OpMsg(reply), data))
     }
 
     pub fn reply(self, doc: &Document) -> Result<OpMsgReply, Box<dyn std::error::Error>> {
