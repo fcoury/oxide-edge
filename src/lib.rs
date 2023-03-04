@@ -15,10 +15,34 @@ pub struct MsgHeader {
     pub op_code: u32,
 }
 
+impl MsgHeader {
+    pub fn from_slice(input: &[u8]) -> Result<MsgHeader, Box<dyn std::error::Error>> {
+        if input.len() < 16 {
+            return Err("not enough bytes to parse MsgHeader".into());
+        }
+
+        Ok(MsgHeader {
+            message_length: u32::from_le_bytes([input[0], input[1], input[2], input[3]]),
+            request_id: u32::from_le_bytes([input[4], input[5], input[6], input[7]]),
+            response_to: u32::from_le_bytes([input[8], input[9], input[10], input[11]]),
+            op_code: u32::from_le_bytes([input[12], input[13], input[14], input[15]]),
+        })
+    }
+}
+
 #[derive(Clone, Debug)]
 pub enum OpCode {
     OpMsg(OpMsg),
     OpQuery(OpQuery),
+}
+
+impl OpCode {
+    pub fn command(&self) -> String {
+        match self {
+            OpCode::OpMsg(op_msg) => op_msg.command(),
+            OpCode::OpQuery(op_query) => op_query.command(),
+        }
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -37,8 +61,8 @@ impl OpQuery {
         vec![self.query.clone()]
     }
 
-    pub fn command(&self) -> &str {
-        self.query.keys().next().unwrap()
+    pub fn command(&self) -> String {
+        self.query.keys().next().unwrap().to_string()
     }
 }
 
@@ -61,13 +85,16 @@ impl OpMsg {
             .collect()
     }
 
-    pub fn command(&self) -> &str {
-        match self.sections.first() {
+    pub fn command(&self) -> String {
+        match self.clone().sections.first() {
             Some(section) => match section {
-                Section::Body(body) => body.payload.keys().next().unwrap(),
+                Section::Body(body) => {
+                    let payload = body.payload.clone();
+                    payload.keys().next().unwrap().to_string()
+                }
                 Section::DocumentSequence(_) => todo!(),
             },
-            None => "ismaster",
+            None => "ismaster".to_string(),
         }
     }
 }
@@ -79,6 +106,55 @@ pub enum Section {
 }
 
 impl Section {
+    pub fn new(kind: u8, data: &[u8]) -> Vec<Section> {
+        match kind {
+            0 => vec![Section::Body(BodySection {
+                payload: bson::from_slice(data).unwrap(),
+            })],
+            1 => vec![Section::DocumentSequence(DocumentSequenceSection {
+                identifier: String::from_utf8(data[0..4].to_vec()).unwrap(),
+                documents: data[4..].chunks(4).map(|chunk| chunk.to_vec()).collect(),
+            })],
+            _ => todo!(),
+        }
+    }
+
+    pub fn from_slice(input: &[u8]) -> Result<(Section, Option<u32>), Box<dyn std::error::Error>> {
+        let mut count = 0;
+        let kind = u8::from_le_bytes([input[count]]);
+        count += 1;
+
+        let payload_size = u32::from_le_bytes([
+            input[count],
+            input[count + 1],
+            input[count + 2],
+            input[count + 3],
+        ]);
+
+        let payload_data = &input[count..count + payload_size as usize];
+        count += payload_size as usize;
+
+        // if we ran out of bytes, we don't have a checksum
+        if input.len() < count + 4 {
+            return Ok((Section::new(kind, payload_data)[0].clone(), None));
+        }
+
+        let checksum = u32::from_le_bytes([
+            input[count],
+            input[count + 1],
+            input[count + 2],
+            input[count + 3],
+        ]);
+
+        Ok((Section::new(kind, payload_data)[0].clone(), Some(checksum)))
+    }
+
+    pub fn parse_payload(input: &[u8]) -> IResult<&[u8], &[u8]> {
+        let (input, payload_size) = le_u32(input)?;
+        let (input, payload) = take(payload_size)(input)?;
+        Ok((input, payload))
+    }
+
     pub fn kind(&self) -> u8 {
         match self {
             Section::Body(_) => 0,
