@@ -1,60 +1,23 @@
 use std::error::Error;
-use std::sync::atomic::{AtomicI32, Ordering};
 
 use mongodb_wire_protocol_parser::{parse, OpCode};
-use tokio::io::{AsyncReadExt, AsyncWriteExt};
-use tokio::net::{TcpListener, TcpStream};
+use tokio::{
+    io::{AsyncReadExt, AsyncWriteExt},
+    net::TcpStream,
+};
 use tracing::{instrument, trace};
 
-use crate::cli::Cli;
-use crate::log::log;
-use crate::message::{OpMsg, OpQuery, OpReply};
-
-#[derive(Debug, Clone)]
-pub struct Server {
-    cli: Cli,
-}
+use crate::{
+    cli::Cli,
+    log::log,
+    message::{OpMsg, OpQuery, OpReply},
+};
 
 #[derive(Debug)]
 pub struct Connection {
     id: i32,
     cli: Cli,
     stream: TcpStream,
-}
-
-impl Server {
-    pub fn new(cli: Cli) -> Self {
-        Self { cli }
-    }
-
-    pub async fn start(self) -> Result<(), Box<dyn Error>> {
-        let listener = TcpListener::bind(&self.cli.listen).await?;
-        tracing::info!("server listening on {}", &self.cli.listen);
-
-        if let Some(proxies) = &self.cli.proxy {
-            tracing::info!("proxying to: {proxies:?}");
-        }
-
-        let id = AtomicI32::new(0);
-        while let Ok((inbound, _)) = listener.accept().await {
-            tracing::trace!("accepted connection from: {}", inbound.peer_addr()?);
-            let new_id = id.fetch_add(1, Ordering::SeqCst) + 1;
-
-            let handler = {
-                let request = Connection::new(new_id, self.cli.clone(), inbound);
-                async move {
-                    let result = request.handle().await;
-                    if let Err(e) = result {
-                        tracing::error!("error: {e}");
-                    }
-                }
-            };
-
-            tokio::spawn(handler);
-        }
-
-        Ok(())
-    }
 }
 
 impl Connection {
@@ -67,7 +30,7 @@ impl Connection {
         skip(self)
         fields(id = %self.id),
     )]
-    async fn handle(mut self) -> Result<(), Box<dyn Error>> {
+    pub async fn handle(mut self) -> Result<(), Box<dyn Error>> {
         // TODO create a request struct for each request on the loop
         let main_id = self.id;
         let mut local_id = 0;
@@ -107,7 +70,8 @@ impl Connection {
             let msg = parse(data)?;
             trace!("MSG = {msg:?}");
 
-            log(&id, "txt", "request", format!("{msg:#?}").as_bytes()).await;
+            self.log(&id, "txt", "request", format!("{msg:#?}").as_bytes())
+                .await;
 
             let cmd = msg.command();
             let response = match msg {
@@ -116,7 +80,7 @@ impl Connection {
             };
             self.stream.write_all(&response).await?;
 
-            log(
+            self.log(
                 id,
                 "bin",
                 format!("response-oxide-{cmd}"),
@@ -153,18 +117,33 @@ impl Connection {
             let msg = OpReply::parse(&proxy_data)?;
             let json = serde_json::to_string_pretty(&msg.documents())?;
 
-            log(id, "bin", "request", data).await;
-            log(id, "bin", format!("response-{i}"), &proxy_data).await;
-            log(
+            self.log(id, "bin", "request", data).await;
+            self.log(id, "bin", format!("response-{i}"), &proxy_data)
+                .await;
+            self.log(
                 id,
                 "txt",
                 format!("response-{i}"),
                 format!("{msg:#?}").as_bytes(),
             )
             .await;
-            log(id, "json", format!("response-{i}"), json.as_bytes()).await;
+            self.log(id, "json", format!("response-{i}"), json.as_bytes())
+                .await;
         }
 
         Ok(())
+    }
+
+    pub async fn log(
+        &self,
+        id: impl Into<String>,
+        kind: impl Into<String>,
+        name: impl Into<String>,
+        data: &[u8],
+    ) {
+        let id = id.into();
+        let kind = kind.into();
+        let name = name.into();
+        log(format!("dump/{id}-{name}.{kind}"), data).await;
     }
 }
