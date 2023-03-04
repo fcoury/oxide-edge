@@ -15,10 +15,11 @@ pub struct Server {
     cli: Cli,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct Connection {
     id: i32,
     cli: Cli,
+    stream: TcpStream,
 }
 
 impl Server {
@@ -40,9 +41,9 @@ impl Server {
             let new_id = id.fetch_add(1, Ordering::SeqCst) + 1;
 
             let handler = {
-                let request = Connection::new(new_id, self.cli.clone());
+                let request = Connection::new(new_id, self.cli.clone(), inbound);
                 async move {
-                    let result = request.handle(inbound).await;
+                    let result = request.handle().await;
                     if let Err(e) = result {
                         tracing::error!("error: {e}");
                     }
@@ -57,16 +58,16 @@ impl Server {
 }
 
 impl Connection {
-    pub fn new(id: i32, cli: Cli) -> Self {
-        Self { id, cli }
+    pub fn new(id: i32, cli: Cli, stream: TcpStream) -> Self {
+        Self { id, cli, stream }
     }
 
     #[instrument(
         name = "handle",
-        skip(inbound),
         fields(id = %self.id),
     )]
-    async fn handle(&self, mut inbound: TcpStream) -> Result<(), Box<dyn Error>> {
+    async fn handle(mut self) -> Result<(), Box<dyn Error>> {
+        // TODO create a request struct for each request on the loop
         let main_id = self.id;
         let mut local_id = 0;
         loop {
@@ -76,7 +77,7 @@ impl Connection {
             let mut data = Vec::new();
 
             let mut buf = [0; 4];
-            let n = inbound.peek(&mut buf).await?;
+            let n = self.stream.peek(&mut buf).await?;
             if n == 0 {
                 break;
             }
@@ -88,7 +89,7 @@ impl Connection {
 
             loop {
                 let mut buf = [0; 4096];
-                let n = inbound.read(&mut buf).await?;
+                let n = self.stream.read(&mut buf).await?;
                 if n == 0 {
                     break;
                 }
@@ -108,8 +109,8 @@ impl Connection {
             log(&id, "txt", "request", format!("{msg:#?}").as_bytes()).await;
 
             match msg {
-                OpCode::OpMsg(msg) => OpMsg(msg).handle(&id, &mut inbound).await?,
-                OpCode::OpQuery(query) => OpQuery(query).handle(&id, &mut inbound).await?,
+                OpCode::OpMsg(msg) => OpMsg(msg).handle(&id, &mut self.stream).await?,
+                OpCode::OpQuery(query) => OpQuery(query).handle(&id, &mut self.stream).await?,
             };
         }
 
