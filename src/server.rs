@@ -123,7 +123,7 @@ impl Request {
 
         for (i, proxy) in proxies.iter().enumerate() {
             let mut proxy = TcpStream::connect(proxy).await?;
-            proxy.write_all(&data).await?;
+            proxy.write_all(data).await?;
             proxy.flush().await?;
 
             let mut buf = [0; 4];
@@ -138,7 +138,7 @@ impl Request {
             let msg = OpReply::parse(&proxy_data)?;
             let json = serde_json::to_string_pretty(&msg.documents())?;
 
-            log(id, "bin", "request", &data).await;
+            log(id, "bin", "request", data).await;
             log(id, "bin", format!("response-{i}"), &proxy_data).await;
             log(
                 id,
