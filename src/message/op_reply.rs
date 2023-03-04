@@ -245,8 +245,8 @@ mod tests {
         assert_eq!(reply.starting_from, 0);
         assert_eq!(reply.number_returned, 1);
         let doc = reply.documents.get(0).unwrap();
-        println!("{:?}", doc);
-        assert_eq!(doc.get_bool("helloOk").unwrap(), true);
-        assert_eq!(doc.get_bool("ismaster").unwrap(), true);
+        println!("{doc:?}");
+        assert!(doc.get_bool("helloOk").unwrap());
+        assert!(doc.get_bool("ismaster").unwrap());
     }
 }
