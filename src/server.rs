@@ -1,4 +1,5 @@
 use std::error::Error;
+use std::sync::atomic::{AtomicI32, Ordering};
 
 use mongodb_wire_protocol_parser::{parse, OpCode};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
@@ -33,13 +34,13 @@ impl Server {
             tracing::info!("proxying to: {proxies:?}");
         }
 
-        let mut id = 0;
+        let id = AtomicI32::new(0);
         while let Ok((inbound, _)) = listener.accept().await {
             tracing::debug!("accepted connection from: {}", inbound.peer_addr()?);
-            id += 1;
+            let new_id = id.fetch_add(1, Ordering::SeqCst) + 1;
 
             let handler = {
-                let request = Request::new(id, self.cli.clone());
+                let request = Request::new(new_id, self.cli.clone());
                 async move {
                     let result = request.handle(inbound).await;
                     if let Err(e) = result {
