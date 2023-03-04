@@ -10,7 +10,7 @@ anyhow = "1.0.69"
 bson = "2.5.0"
 clap = {version = "4.1.8", features = ["derive"]}
 dotenvy = "0.15.6"
-duckdb = {version = "0.7.1", features = ["bundled", "r2d2"]}
+duckdb = {version = "0.7.1", features = ["bundled", "r2d2", "serde_json"]}
 futures = "0.3.26"
 mongodb-wire-protocol-parser = {path = "../mongodb-wire-protocol-parser"}
 r2d2 = "0.8.10"

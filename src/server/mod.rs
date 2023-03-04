@@ -31,6 +31,8 @@ impl Server {
         let manager = DuckdbConnectionManager::memory()?;
         let pool = r2d2::Pool::new(manager)?;
 
+        pool.get()?.execute_batch("INSTALL 'json'; LOAD 'json';")?;
+
         while let Ok((inbound, _)) = listener.accept().await {
             tracing::trace!("accepted connection from: {}", inbound.peer_addr()?);
             let new_id = id.fetch_add(1, Ordering::SeqCst) + 1;

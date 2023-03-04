@@ -10,6 +10,7 @@ pub mod error;
 pub mod getcmdlineopts;
 pub mod getparameter;
 pub mod hello;
+pub mod insert;
 pub mod ismaster;
 pub mod listdatabases;
 pub mod ping;
@@ -27,6 +28,7 @@ pub enum Command {
     IsMaster,
     ListDatabases,
     Ping,
+    Insert,
 }
 
 impl Command {
@@ -48,8 +50,9 @@ impl Command {
             "getparameter" => Some(Command::GetParameter),
             "hello" => Some(Command::Hello),
             "ismaster" => Some(Command::IsMaster),
-            "listdatabases" => Some(Command::ListDatabases),
             "ping" => Some(Command::Ping),
+            "listdatabases" => Some(Command::ListDatabases),
+            "insert" => Some(Command::Insert),
             _ => None,
         }
     }
@@ -65,8 +68,9 @@ impl Command {
             Command::GetParameter => getparameter::run(op_code),
             Command::Hello => hello::run(),
             Command::IsMaster => ismaster::run(op_code),
-            Command::ListDatabases => listdatabases::run(op_code, db_conn),
             Command::Ping => ping::run(),
+            Command::ListDatabases => listdatabases::run(op_code, db_conn),
+            Command::Insert => insert::run(op_code, db_conn),
         }
     }
 }
