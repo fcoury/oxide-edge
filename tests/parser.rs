@@ -68,19 +68,19 @@ fn test_parse_is_master() {
     assert_eq!(op_query.query.get_bool("helloOk").unwrap(), true);
 }
 
-// #[test]
-// fn test_multiple() {
-//     // iterate through files in ../tokio-proxy/logs
-//     for file in fs::read_dir("../tokio-proxy/logs")
-//         .unwrap()
-//         .filter_map(|e| e.ok())
-//         .filter_map(|e| e.path().to_string_lossy().contains("request").then(|| e))
-//         .map(|e| e.path())
-//         .collect::<Vec<_>>()
-//     {
-//         println!("Parsing {:?}", file);
-//         let input = fs::read(file).unwrap();
-//         let (_input, op_code) = parse(&input).unwrap();
-//         println!("{:#?}", op_code);
-//     }
-// }
+#[test]
+fn test_multiple() {
+    // iterate through files in ../tokio-proxy/logs
+    for file in fs::read_dir("../tokio-proxy/logs")
+        .unwrap()
+        .filter_map(|e| e.ok())
+        .filter_map(|e| e.path().to_string_lossy().contains("request").then(|| e))
+        .map(|e| e.path())
+        .collect::<Vec<_>>()
+    {
+        println!("Parsing {:?}", file);
+        let input = fs::read(file).unwrap();
+        let (_input, op_code) = parse(&input).unwrap();
+        println!("{:#?}", op_code);
+    }
+}
