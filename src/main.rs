@@ -83,15 +83,22 @@ async fn handle(mut inbound: TcpStream, cli: Cli) -> Result<(), Box<dyn Error>> 
                 let size: u32 = u32::from_le_bytes(buf);
                 trace!("proxy {i} size = {size}");
 
-                let mut data = vec![0; size as usize];
-                proxy.read_exact(&mut data).await?;
-                trace!("proxy {i} data = {:?}", data);
-                let response_to = u32::from_le_bytes([data[8], data[9], data[10], data[11]]);
+                let mut proxy_data = vec![0; size as usize];
+                proxy.read_exact(&mut proxy_data).await?;
+                trace!("proxy {i} data = {:?}", proxy_data);
+                let response_to = u32::from_le_bytes([
+                    proxy_data[8],
+                    proxy_data[9],
+                    proxy_data[10],
+                    proxy_data[11],
+                ]);
 
-                log("bin", i, response_to, &data).await;
-
-                let msg = OpReply::parse(&data)?;
+                let msg = OpReply::parse(&proxy_data)?;
                 let json = serde_json::to_string_pretty(&msg.documents())?;
+
+                log("request.bin", i, response_to, &data).await;
+                log("bin", i, response_to, &proxy_data).await;
+                log("data", i, response_to, format!("{:#?}", msg).as_bytes()).await;
                 log("json", i, response_to, json.as_bytes()).await;
             }
         }
