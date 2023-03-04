@@ -108,10 +108,31 @@ impl Connection {
 
             log(&id, "txt", "request", format!("{msg:#?}").as_bytes()).await;
 
-            match msg {
-                OpCode::OpMsg(msg) => OpMsg(msg).handle(&id, &mut self.stream).await?,
-                OpCode::OpQuery(query) => OpQuery(query).handle(&id, &mut self.stream).await?,
+            let (cmd, response) = match msg {
+                OpCode::OpMsg(msg) => {
+                    let cmd = msg.command();
+                    let response = OpMsg(msg).handle().await?;
+
+                    (cmd, response)
+                }
+                OpCode::OpQuery(query) => {
+                    let cmd = query.command();
+                    let response = OpQuery(query).handle().await?;
+                    (cmd, response)
+                }
             };
+            self.stream.write_all(&response).await?;
+
+            log(
+                id,
+                "bin",
+                format!("response-oxide-{cmd}"),
+                response.as_slice(),
+            )
+            .await;
+            // TODO log the json document
+            // let json = serde_json::to_string_pretty(&doc)?;
+            // log(id, "json", format!("response-oxide-{cmd}"), json.as_bytes()).await;
         }
 
         Ok(())

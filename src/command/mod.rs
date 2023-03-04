@@ -12,7 +12,6 @@ pub mod ping;
 
 pub const MAX_DOCUMENT_LEN: u32 = 16777216;
 pub const MAX_MSG_LEN: u32 = 48000000;
-pub const HEADER_SIZE: u32 = 16;
 
 #[derive(Debug, Error)]
 pub enum CommandError {

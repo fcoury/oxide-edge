@@ -1,57 +1,32 @@
 use std::error::Error;
 
-use bson::{ser, Document};
+use bson::Document;
 use mongodb_wire_protocol_parser::OpCode;
-use tokio::io::AsyncWriteExt;
-use tokio::net::TcpStream;
 use tracing::{debug, instrument};
 
-use crate::{
-    command::{ismaster, CommandError, HEADER_SIZE},
-    log::log,
-};
+use crate::command::{ismaster, CommandError};
+
+use super::OpQueryReply;
 
 #[derive(Debug)]
 pub struct OpQuery(pub mongodb_wire_protocol_parser::OpQuery);
 
 impl OpQuery {
-    #[instrument(name = "OpQuery.handle", skip(self, inbound))]
-    pub async fn handle(self, id: &str, inbound: &mut TcpStream) -> Result<(), Box<dyn Error>> {
+    #[instrument(name = "OpQuery.handle", skip(self))]
+    pub async fn handle(self) -> Result<Vec<u8>, Box<dyn Error>> {
         let doc = self.run().await?;
+        let reply = self.reply(doc)?;
+        debug!("OpQuery reply={:#?}", reply);
 
-        let query = self.0;
-        let docs = ser::to_vec(&doc)?;
-        let message_length = HEADER_SIZE + 20 + docs.len() as u32;
+        Ok(reply.into())
+    }
 
-        // header
-        inbound.write_all(&message_length.to_le_bytes()).await?;
-        inbound.write_all(&0u32.to_le_bytes()).await?; // request_id
-        inbound
-            .write_all(&query.header.request_id.to_le_bytes())
-            .await?; // response_to
-        inbound.write_all(&1u32.to_le_bytes()).await?; // opcode - OP_REPLY = 1
+    pub fn reply(self, doc: Document) -> Result<OpQueryReply, Box<dyn std::error::Error>> {
+        let mut reply: OpQueryReply = self.0.into();
+        reply.add_document(&doc);
+        reply.number_returned = 1;
 
-        // reply
-        inbound.write_all(&query.flags.to_le_bytes()).await?; // flags
-        inbound.write_all(&0u64.to_le_bytes()).await?; // cursor_id
-        inbound.write_all(&0u32.to_le_bytes()).await?; // starting_from
-        inbound.write_all(&1u32.to_le_bytes()).await?; // number_returned
-
-        // documents
-        inbound.write_all(&docs).await?;
-        inbound.flush().await?;
-
-        log(
-            id,
-            "txt",
-            format!("response-oxide-{cmd}", cmd = query.command()),
-            docs.as_slice(),
-        )
-        .await;
-
-        debug!("OP_QUERY: [{cmd}] => {doc:?}", cmd = query.command());
-
-        Ok(())
+        Ok(reply)
     }
 
     async fn run(&self) -> Result<Document, CommandError> {

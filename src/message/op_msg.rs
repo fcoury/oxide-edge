@@ -1,7 +1,6 @@
 use anyhow::anyhow;
 use bson::Document;
 use mongodb_wire_protocol_parser::OpCode;
-use tokio::{io::AsyncWriteExt, net::TcpStream};
 use tracing::{debug, error, instrument};
 
 use crate::{
@@ -9,37 +8,28 @@ use crate::{
         buildinfo, error, getcmdlineopts, getparameter, hello, ismaster, ping, CommandError,
     },
     error::Error,
-    log::log,
+    message::OpMsgReply,
 };
-
-use super::op_reply::OpMsgReply;
 
 #[derive(Debug)]
 pub struct OpMsg(pub mongodb_wire_protocol_parser::OpMsg);
 
 impl OpMsg {
-    #[instrument(name = "OpMsg.handle", skip(self, stream))]
-    pub async fn handle(
-        self,
-        id: &str,
-        stream: &mut TcpStream,
-    ) -> Result<(), Box<dyn std::error::Error>> {
+    #[instrument(name = "OpMsg.handle", skip(self))]
+    pub async fn handle(self) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
         let doc = &self.run().await?;
-        let cmd = &self.0.command();
+        let cmd = &self.command();
         let reply = self.reply(doc)?;
 
         let data: Vec<u8> = reply.into();
 
-        log(id, "bin", format!("response-oxide-{cmd}"), data.as_slice()).await;
-
         debug!("OP_MSG: [{cmd}] => ({size}) {doc:?}", size = data.len());
 
-        let json = serde_json::to_string_pretty(&doc)?;
-        log(id, "json", format!("response-oxide-{cmd}"), json.as_bytes()).await;
+        Ok(data)
+    }
 
-        stream.write_all(&data).await?;
-
-        Ok(())
+    pub fn command(&self) -> String {
+        self.0.command()
     }
 
     pub fn reply(self, doc: &Document) -> Result<OpMsgReply, Box<dyn std::error::Error>> {
