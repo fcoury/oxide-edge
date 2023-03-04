@@ -24,8 +24,12 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let cli = Cli::parse();
     let listen_addr = &cli.listen;
 
-    tracing::info!("server listening on {}", listen_addr);
     let listener = TcpListener::bind(listen_addr).await?;
+    tracing::info!("server listening on {}", listen_addr);
+
+    if let Some(proxies) = &cli.proxy {
+        tracing::info!("proxying to: {proxies:?}");
+    }
 
     let mut id = 0;
     while let Ok((inbound, _)) = listener.accept().await {
