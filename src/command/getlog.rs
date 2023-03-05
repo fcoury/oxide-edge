@@ -37,7 +37,5 @@ OxideDB v0.1.0      by Felipe Coury <felipe.coury@gmail.com>
         "ok": 1.0
     };
 
-    println!("{:#?}", doc);
-
     Ok(doc)
 }
