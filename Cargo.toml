@@ -8,6 +8,7 @@ version = "0.1.0"
 [dependencies]
 anyhow = "1.0.69"
 bson = "2.5.0"
+chrono = "0.4.23"
 clap = {version = "4.1.8", features = ["derive", "env"]}
 dotenvy = {version = "0.15.6", features = ["clap"]}
 duckdb = {version = "0.7.1", features = ["bundled", "r2d2", "serde_json"]}

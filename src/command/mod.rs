@@ -9,6 +9,7 @@ pub mod buildinfo;
 pub mod error;
 pub mod find;
 pub mod getcmdlineopts;
+pub mod getlog;
 pub mod getparameter;
 pub mod hello;
 pub mod insert;
@@ -26,6 +27,7 @@ pub enum Command {
     BuildInfo,
     Find,
     GetCmdLineOpts,
+    GetLog,
     GetParameter,
     Hello,
     Insert,
@@ -52,6 +54,7 @@ impl Command {
             "buildinfo" => Some(Command::BuildInfo),
             "find" => Some(Command::Find),
             "getcmdlineopts" => Some(Command::GetCmdLineOpts),
+            "getlog" => Some(Command::GetLog),
             "getparameter" => Some(Command::GetParameter),
             "hello" => Some(Command::Hello),
             "insert" => Some(Command::Insert),
@@ -72,6 +75,7 @@ impl Command {
             Command::BuildInfo => buildinfo::run(op_code),
             Command::Find => find::run(op_code, db_conn),
             Command::GetCmdLineOpts => getcmdlineopts::run(op_code),
+            Command::GetLog => getlog::run(),
             Command::GetParameter => getparameter::run(op_code),
             Command::Hello => hello::run(),
             Command::Insert => insert::run(op_code, db_conn),
