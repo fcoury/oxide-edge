@@ -43,6 +43,20 @@ impl OpCode {
             OpCode::OpQuery(op_query) => op_query.command(),
         }
     }
+
+    pub fn documents(&self) -> Vec<Document> {
+        match self {
+            OpCode::OpMsg(op_msg) => op_msg.as_documents(),
+            OpCode::OpQuery(op_query) => op_query.as_documents(),
+        }
+    }
+
+    pub fn document(&self) -> Document {
+        match self {
+            OpCode::OpMsg(op_msg) => op_msg.as_documents().first().unwrap().clone(),
+            OpCode::OpQuery(op_query) => op_query.as_documents().first().unwrap().clone(),
+        }
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -291,7 +305,7 @@ fn parse_section(input: &[u8]) -> IResult<&[u8], Section> {
     let (input, section) = match section_type {
         0 => parse_body_section(input),
         1 => parse_document_sequence_section(input),
-        _ => panic!("Unknown section type: {}", section_type),
+        _ => panic!("Unknown section type: {section_type}"),
     }?;
 
     Ok((input, section))
@@ -304,7 +318,7 @@ fn parse_body_section(input: &[u8]) -> IResult<&[u8], Section> {
     Ok((
         input,
         Section::Body(BodySection {
-            payload: bson::from_slice(&payload.to_vec()).unwrap(),
+            payload: bson::from_slice(payload).unwrap(),
         }),
     ))
 }
