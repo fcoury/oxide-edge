@@ -15,6 +15,8 @@ duckdb = {version = "0.7.1", features = ["bundled", "r2d2", "serde_json"]}
 futures = "0.3.26"
 mongodb-wire-protocol-parser = {path = "./mongodb-wire-protocol-parser"}
 r2d2 = "0.8.10"
+r2d2_postgres = "0.18.1"
+r2d2_sqlite = "0.21.0"
 serde = {version = "1.0.152", features = ["derive"]}
 serde_json = "1.0.93"
 thiserror = "1.0.38"

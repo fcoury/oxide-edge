@@ -9,6 +9,7 @@ use crate::cli::Cli;
 
 mod cli;
 mod command;
+mod dal;
 mod error;
 mod log;
 mod message;

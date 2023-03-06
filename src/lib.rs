@@ -1,5 +1,6 @@
 pub mod cli;
 pub mod command;
+pub mod dal;
 pub mod error;
 pub mod log;
 pub mod message;
