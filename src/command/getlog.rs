@@ -14,6 +14,7 @@ pub fn run() -> CommandResult {
 OxideDB v0.1.0      by Felipe Coury <felipe.coury@gmail.com>
 "#;
 
+    let lines = banner.lines().count();
     let log = banner
         .lines()
         .into_iter()
@@ -32,7 +33,7 @@ OxideDB v0.1.0      by Felipe Coury <felipe.coury@gmail.com>
         .collect::<Vec<String>>();
 
     let doc = doc! {
-        "totalLinesWritten": 3,
+        "totalLinesWritten": lines as u32,
         "log": log,
         "ok": 1.0
     };
