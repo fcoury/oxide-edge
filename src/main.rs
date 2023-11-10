@@ -10,7 +10,10 @@ use std::{
 mod error;
 mod types;
 
-use crate::{error::Result, types::MsgHeader};
+use crate::{
+    error::Result,
+    types::{MsgHeader, OpQuery},
+};
 
 #[derive(Debug)]
 pub enum Message {
@@ -59,6 +62,16 @@ impl Server {
         println!("New message from {}: {:?}", addr, bytes);
         let header = MsgHeader::new(bytes);
         println!("message: {:#?}", header);
+
+        match header.op_code() {
+            2004 => {
+                let op_query = OpQuery::new(bytes);
+                println!("op_query: {:#?}", op_query);
+            }
+            op_code => {
+                unimplemented!("op_code: {}", op_code);
+            }
+        }
     }
 }
 
