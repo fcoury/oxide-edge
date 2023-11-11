@@ -10,7 +10,6 @@ pub struct Bson<'a> {
 
 impl<'a> Bson<'a> {
     pub fn from_bytes(bytes: &'a [u8]) -> Self {
-        println!("bson from bytes: {:?}", bytes);
         Self { bytes }
     }
 
@@ -131,7 +130,6 @@ impl<'a> Bson<'a> {
                 0x0D => {
                     // JavaScriptCode
                     let value = self.parse_java_script_code(i);
-                    println!("name: {:?}, value: {:?}", name, value);
                     i += 1 + name.len() + 1 + value.len() + 1;
                     Value::JavaScriptCode(value)
                 }
@@ -177,13 +175,11 @@ impl<'a> Bson<'a> {
                 }
                 0xFF => {
                     // MinKey
-                    println!("name: {:?}", name);
                     i += 1 + name.len() + 1;
                     Value::MinKey
                 }
                 0x7F => {
                     // MaxKey
-                    println!("name: {:?}", name);
                     i += 1 + name.len() + 1;
                     Value::MaxKey
                 }
@@ -191,7 +187,6 @@ impl<'a> Bson<'a> {
                     panic!("unknown element type: {:x?}", element_type);
                 }
             };
-            println!("name: {:?}, value: {:#?}", name, value);
             map.insert(name, value);
 
             if i >= self.len() as usize {
@@ -325,37 +320,37 @@ impl<'a> Bson<'a> {
 mod test {
     use super::*;
 
-    // #[test]
-    // fn test_simple_bson() {
-    //     let data = [
-    //         0x16, 0x00, 0x00, 0x00, // total document size
-    //         0x02, // 0x02 = type String
-    //         0x68, 0x65, 0x6c, 0x6c, 0x6f, 0x00, // field name "hello"
-    //         0x06, 0x00, 0x00, 0x00, 0x77, 0x6f, 0x72, 0x6c, 0x64, 0x00, // field value "world"
-    //         0x00, // 0x00 = type EOO ('end of object')
-    //     ];
-    //     let doc = Bson::new(&data).parse();
-    //     println!("doc: {:#?}", doc);
-    // }
+    #[test]
+    fn test_simple_bson() {
+        let data = [
+            0x16, 0x00, 0x00, 0x00, // total document size
+            0x02, // 0x02 = type String
+            0x68, 0x65, 0x6c, 0x6c, 0x6f, 0x00, // field name "hello"
+            0x06, 0x00, 0x00, 0x00, 0x77, 0x6f, 0x72, 0x6c, 0x64, 0x00, // field value "world"
+            0x00, // 0x00 = type EOO ('end of object')
+        ];
+        let doc = Bson::new(&data).parse();
+        println!("doc: {:#?}", doc);
+    }
 
-    // #[test]
-    // fn test_nested_bson() {
-    //     let data = [
-    //         0x31, 0x00, 0x00, 0x00, // total document size
-    //         0x03, // 0x03 = type Embedded Document
-    //         0x6e, 0x65, 0x73, 0x74, 0x65, 0x64, 0x00, // field name "nested"
-    //         0x1c, 0x00, 0x00, 0x00, // size of the nested document
-    //         0x02, // 0x02 = type String
-    //         0x6e, 0x61, 0x6d, 0x65, 0x00, // field name "name"
-    //         0x05, 0x00, 0x00, 0x00, // string size
-    //         0x42, 0x53, 0x4f, 0x4e, 0x00, // field value "BSON"
-    //         0x10, // 0x10 = type 32-bit Integer
-    //         0x61, 0x67, 0x65, 0x00, // field name "age"
-    //         0x1e, 0x00, 0x00, 0x00, // field value 30
-    //         0x00, // 0x00 = type EOO (end of object) for nested document
-    //         0x00, // 0x00 = type EOO (end of object) for the outer document
-    //     ];
-    //     let doc = Bson::new(&data).parse();
-    //     println!("doc: {:#?}", doc);
-    // }
+    #[test]
+    fn test_nested_bson() {
+        let data = [
+            0x31, 0x00, 0x00, 0x00, // total document size
+            0x03, // 0x03 = type Embedded Document
+            0x6e, 0x65, 0x73, 0x74, 0x65, 0x64, 0x00, // field name "nested"
+            0x1c, 0x00, 0x00, 0x00, // size of the nested document
+            0x02, // 0x02 = type String
+            0x6e, 0x61, 0x6d, 0x65, 0x00, // field name "name"
+            0x05, 0x00, 0x00, 0x00, // string size
+            0x42, 0x53, 0x4f, 0x4e, 0x00, // field value "BSON"
+            0x10, // 0x10 = type 32-bit Integer
+            0x61, 0x67, 0x65, 0x00, // field name "age"
+            0x1e, 0x00, 0x00, 0x00, // field value 30
+            0x00, // 0x00 = type EOO (end of object) for nested document
+            0x00, // 0x00 = type EOO (end of object) for the outer document
+        ];
+        let doc = Bson::new(&data).parse();
+        println!("doc: {:#?}", doc);
+    }
 }
