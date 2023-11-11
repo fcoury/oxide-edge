@@ -1,7 +1,9 @@
-pub struct Document {
-    bytes: Vec<u8>,
-}
+use std::collections::HashMap;
 
+#[derive(Debug)]
+pub struct Document(pub HashMap<String, Value>);
+
+#[derive(Debug)]
 pub enum Value {
     Double(f64),                               // \x01
     String(String),                            // \x02
@@ -27,4 +29,5 @@ pub enum Value {
     MaxKey,                                    // \x7F
 }
 
+#[derive(Debug)]
 pub struct Decimal128;

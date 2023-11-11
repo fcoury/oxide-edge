@@ -1,4 +1,8 @@
-use std::fmt;
+use std::{collections::HashMap, fmt};
+
+use crate::types::Bson;
+
+use super::{Document, Value};
 
 pub struct OpQuery<'a> {
     pub bytes: &'a [u8],
@@ -45,17 +49,11 @@ impl<'a> OpQuery<'a> {
         )
     }
 
-    pub fn query(&self) -> Vec<u8> {
+    pub fn query(&self) -> Document {
         let i = 20 + self.full_collection_name().len() + 1 + 8;
-        println!("bytes: {:?}", self.bytes[i..i + 4].to_vec());
-        let size = i32::from_le_bytes(
-            self.bytes[i..i + 4]
-                .try_into()
-                .expect("message is well formed"),
-        ) as usize;
-        println!("size: {}", size);
-
-        vec![]
+        let bson = Bson::from_bytes(&self.bytes[i..]);
+        let result = bson.parse();
+        result
     }
 }
 
