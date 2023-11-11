@@ -8,6 +8,7 @@ pub struct Bson<'a> {
 
 impl<'a> Bson<'a> {
     pub fn from_bytes(bytes: &'a [u8]) -> Self {
+        println!("bson from bytes: {:?}", bytes);
         Self { bytes }
     }
 
@@ -32,42 +33,44 @@ impl<'a> Bson<'a> {
         let mut i = start_from;
 
         loop {
-            let element_type = self.bytes[i];
-            let name = self.parse_cstring(i + 1);
+            let element_type = self.bytes.get(i);
+            let Some(element_type) = element_type else {
+                break;
+            };
+            if *element_type == 0x00 {
+                break;
+            }
 
-            println!("element_type: {:#x?}", element_type);
+            let name = self.parse_cstring(i + 1);
+            i += 1 + name.len() + 1;
 
             let value = match element_type {
-                0x00 => break,
+                // Double
                 0x01 => {
-                    let value = self.parse_double(i + 1 + name.len() + 1);
-                    i += 1 + name.len() + 1 + 8;
+                    let value = self.parse_double(i);
+                    i += 8;
                     Value::Double(value)
                 }
+                // String
                 0x02 => {
-                    let len = i32::from_le_bytes(
-                        self.bytes[i + 1 + name.len() + 1..i + 1 + name.len() + 1 + 4]
-                            .try_into()
-                            .expect("message is well formed"),
-                    ) as usize;
-                    println!("str len: {}", len);
-                    let value = self.parse_string(i + 1 + name.len() + 1);
-                    println!("str: {}", value);
-                    i += 1 + name.len() + 1 + len + 4;
-                    println!("next byte: {:#x?}", self.bytes[i]);
+                    let (value, size) = self.parse_string(i);
+                    i += size + 4;
                     Value::String(value)
                 }
+                // Embedded Document
                 0x03 => {
-                    let len = i32::from_le_bytes(
-                        self.bytes[i + 1 + name.len() + 1..i + 1 + name.len() + 1 + 4]
+                    let size = i32::from_le_bytes(
+                        self.bytes[i..i + 4]
                             .try_into()
                             .expect("message is well formed"),
                     ) as usize;
-                    let value = self.parse_document(i + 1 + name.len() + 1 + 4);
-                    i += 1 + name.len() + 1 + len + 1 + 4;
+                    let start = i + 4;
+                    let value = self.parse_document(start);
+                    i += size;
                     Value::Document(value)
                 }
                 0x04 => {
+                    // Array
                     // let len = i32::from_le_bytes(
                     //     self.bytes[i + 1 + name.len() + 1..i + 1 + name.len() + 1 + 4]
                     //         .try_into()
@@ -79,23 +82,26 @@ impl<'a> Bson<'a> {
                     todo!("Array")
                 }
                 0x05 => {
-                    let value = self.parse_binary(i + 1 + name.len() + 1);
-                    i += 1 + name.len() + 1 + value.len() + 1;
+                    // Binary
+                    let value = self.parse_binary(i);
+                    i += value.len() + 1;
                     Value::Binary(value)
                 }
                 0x06 => {
-                    println!("name: {:?}", name);
-                    i += 1 + name.len() + 1;
+                    // Undefined
+                    i += 1;
                     Value::Undefined
                 }
                 0x07 => {
-                    let value = self.parse_object_id(i + 1 + name.len() + 1);
-                    i += 1 + name.len() + 1 + 12;
+                    // ObjectId
+                    let value = self.parse_object_id(i);
+                    i += 12;
                     Value::ObjectId(value)
                 }
                 0x08 => {
-                    let value = self.parse_boolean(i + 1 + name.len() + 1);
-                    i += 1 + name.len() + 1 + 1;
+                    // Boolean
+                    let value = self.parse_boolean(i);
+                    i += 1;
                     if value {
                         Value::True
                     } else {
@@ -103,37 +109,42 @@ impl<'a> Bson<'a> {
                     }
                 }
                 0x09 => {
-                    let value = self.parse_utc_date_time(i + 1 + name.len() + 1);
-                    i += 1 + name.len() + 1 + 8;
+                    // UTCDateTime
+                    let value = self.parse_utc_date_time(i);
+                    i += 8;
                     Value::UtcDateTime(value)
                 }
                 0x0A => {
-                    println!("name: {:?}", name);
-                    i += 1 + name.len() + 1;
+                    // Null
                     Value::Null
                 }
                 0x0B => {
-                    let value = self.parse_regex(i + 1 + name.len() + 1);
-                    i += 1 + name.len() + 1 + value.0.len() + 1 + value.1.len() + 1;
+                    // Regex
+                    let value = self.parse_regex(i);
+                    i += value.0.len() + 1 + value.1.len() + 1;
                     Value::Regex(value.0, value.1)
                 }
                 0x0C => {
-                    let value = self.parse_db_pointer(i + 1 + name.len() + 1);
-                    i += 1 + name.len() + 1 + value.0.len() + 1 + 12;
+                    // DBPointer
+                    let value = self.parse_db_pointer(i);
+                    i += value.0.len() + 1 + 12;
                     Value::DBPointer(value.0, value.1)
                 }
                 0x0D => {
-                    let value = self.parse_java_script_code(i + 1 + name.len() + 1);
+                    // JavaScriptCode
+                    let value = self.parse_java_script_code(i);
                     println!("name: {:?}, value: {:?}", name, value);
                     i += 1 + name.len() + 1 + value.len() + 1;
                     Value::JavaScriptCode(value)
                 }
                 0x0E => {
-                    let value = self.parse_symbol(i + 1 + name.len() + 1);
-                    i += 1 + name.len() + 1 + value.len() + 1;
+                    // Symbol
+                    let value = self.parse_symbol(i);
+                    i += value.len() + 1;
                     Value::Symbol(value)
                 }
                 0x0F => {
+                    // JavaScriptCodeWithScope
                     // let value = self.parse_java_script_code_with_scope(i + 1 + name.len() + 1);
                     // println!("name: {:?}, value: {:?}", name, value);
                     // i += 1 + name.len() + 1 + value.0.len() + 1 + value.1.len() + 1;
@@ -141,21 +152,25 @@ impl<'a> Bson<'a> {
                     todo!()
                 }
                 0x10 => {
-                    let value = self.parse_int32(i + 1 + name.len() + 1);
-                    i += 1 + name.len() + 1 + 4;
+                    // Int32
+                    let value = self.parse_int32(i);
+                    i += 4;
                     Value::Int32(value)
                 }
                 0x11 => {
-                    let value = self.parse_timestamp(i + 1 + name.len() + 1);
-                    i += 1 + name.len() + 1 + 8;
+                    // Timestamp
+                    let value = self.parse_timestamp(i);
+                    i += 8;
                     Value::Timestamp(value)
                 }
                 0x12 => {
-                    let value = self.parse_int64(i + 1 + name.len() + 1);
-                    i += 1 + name.len() + 1 + 8;
+                    // Int64
+                    let value = self.parse_int64(i);
+                    i += 8;
                     Value::Int64(value)
                 }
                 0x13 => {
+                    // Decimal128
                     // let value = self.parse_decimal128(i + 1 + name.len() + 1);
                     // println!("name: {:?}, value: {:?}", name, value);
                     // i += 1 + name.len() + 1 + 16;
@@ -163,11 +178,13 @@ impl<'a> Bson<'a> {
                     todo!()
                 }
                 0xFF => {
+                    // MinKey
                     println!("name: {:?}", name);
                     i += 1 + name.len() + 1;
                     Value::MinKey
                 }
                 0x7F => {
+                    // MaxKey
                     println!("name: {:?}", name);
                     i += 1 + name.len() + 1;
                     Value::MaxKey
@@ -176,7 +193,7 @@ impl<'a> Bson<'a> {
                     panic!("unknown element type: {:x?}", element_type);
                 }
             };
-            println!("name: {:?}, value: {:?}", name, value);
+            println!("name: {:?}, value: {:#?}", name, value);
             map.insert(name, value);
 
             if i >= self.len() as usize {
@@ -186,15 +203,16 @@ impl<'a> Bson<'a> {
         Document(map)
     }
 
-    pub fn parse_string(&self, i: usize) -> String {
-        let len = i32::from_le_bytes(
+    pub fn parse_string(&self, i: usize) -> (String, usize) {
+        let size = i32::from_le_bytes(
             self.bytes[i..i + 4]
                 .try_into()
                 .expect("message is well formed"),
         ) as usize;
 
         // last byte is null terminator
-        String::from_utf8(self.bytes[i + 4..i + 4 + len - 1].to_vec()).unwrap()
+        let str = String::from_utf8(self.bytes[i + 4..i + 4 + size - 1].to_vec()).unwrap();
+        (str, size)
     }
 
     pub fn parse_cstring(&self, i: usize) -> String {
@@ -215,16 +233,6 @@ impl<'a> Bson<'a> {
         )
     }
 
-    // pub fn parse_document(&self, i: usize) -> Document {
-    //     let size = i32::from_le_bytes(
-    //         self.bytes[i..i + 4]
-    //             .try_into()
-    //             .expect("message is well formed"),
-    //     ) as usize;
-    //
-    //     Document::new(&self.bytes[i..i + size])
-    // }
-
     pub fn parse_binary(&self, i: usize) -> Vec<u8> {
         let size = i32::from_le_bytes(
             self.bytes[i..i + 4]
@@ -240,7 +248,7 @@ impl<'a> Bson<'a> {
     }
 
     pub fn parse_boolean(&self, i: usize) -> bool {
-        self.bytes[i] == 0x0
+        self.bytes[i] == 0x01
     }
 
     pub fn parse_utc_date_time(&self, i: usize) -> u64 {
@@ -313,4 +321,43 @@ impl<'a> Bson<'a> {
     pub fn parse_max_key(&self, i: usize) {
         todo!()
     }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    // #[test]
+    // fn test_simple_bson() {
+    //     let data = [
+    //         0x16, 0x00, 0x00, 0x00, // total document size
+    //         0x02, // 0x02 = type String
+    //         0x68, 0x65, 0x6c, 0x6c, 0x6f, 0x00, // field name "hello"
+    //         0x06, 0x00, 0x00, 0x00, 0x77, 0x6f, 0x72, 0x6c, 0x64, 0x00, // field value "world"
+    //         0x00, // 0x00 = type EOO ('end of object')
+    //     ];
+    //     let doc = Bson::new(&data).parse();
+    //     println!("doc: {:#?}", doc);
+    // }
+
+    // #[test]
+    // fn test_nested_bson() {
+    //     let data = [
+    //         0x31, 0x00, 0x00, 0x00, // total document size
+    //         0x03, // 0x03 = type Embedded Document
+    //         0x6e, 0x65, 0x73, 0x74, 0x65, 0x64, 0x00, // field name "nested"
+    //         0x1c, 0x00, 0x00, 0x00, // size of the nested document
+    //         0x02, // 0x02 = type String
+    //         0x6e, 0x61, 0x6d, 0x65, 0x00, // field name "name"
+    //         0x05, 0x00, 0x00, 0x00, // string size
+    //         0x42, 0x53, 0x4f, 0x4e, 0x00, // field value "BSON"
+    //         0x10, // 0x10 = type 32-bit Integer
+    //         0x61, 0x67, 0x65, 0x00, // field name "age"
+    //         0x1e, 0x00, 0x00, 0x00, // field value 30
+    //         0x00, // 0x00 = type EOO (end of object) for nested document
+    //         0x00, // 0x00 = type EOO (end of object) for the outer document
+    //     ];
+    //     let doc = Bson::new(&data).parse();
+    //     println!("doc: {:#?}", doc);
+    // }
 }
