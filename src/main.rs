@@ -31,6 +31,7 @@ pub enum Message {
 }
 
 struct Client {
+    #[allow(unused)]
     stream: Arc<TcpStream>,
 }
 

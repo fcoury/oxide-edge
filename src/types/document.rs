@@ -36,7 +36,8 @@ pub enum Value {
     Int32(i32),                                // \x10
     Timestamp(u64),                            // \x11
     Int64(i64),                                // \x12
-    Decimal128(Decimal128),                    // \x13
+    #[allow(unused)]
+    Decimal128(Decimal128), // \x13
     MinKey,                                    // \xFF
     MaxKey,                                    // \x7F
 }

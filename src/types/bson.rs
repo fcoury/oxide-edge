@@ -13,10 +13,6 @@ impl<'a> Bson<'a> {
         Self { bytes }
     }
 
-    pub fn new(bytes: &'a [u8]) -> Self {
-        Self { bytes }
-    }
-
     pub fn len(&self) -> i32 {
         i32::from_le_bytes(
             self.bytes[0..4]
@@ -88,98 +84,95 @@ impl<'a> Bson<'a> {
                     i += value.len() + 1;
                     Value::Binary(value)
                 }
+                // Undefined
                 0x06 => {
-                    // Undefined
                     i += 1;
                     Value::Undefined
                 }
+                // ObjectId
                 0x07 => {
-                    // ObjectId
                     let value = self.parse_object_id(i);
                     i += 12;
                     Value::ObjectId(value)
                 }
+                // Boolean
                 0x08 => {
-                    // Boolean
                     let value = self.parse_boolean(i);
                     i += 1;
                     Value::Boolean(value)
                 }
+                // UTCDateTime
                 0x09 => {
-                    // UTCDateTime
                     let value = self.parse_utc_date_time(i);
                     i += 8;
                     Value::UtcDateTime(value)
                 }
-                0x0A => {
-                    // Null
-                    Value::Null
-                }
+                // Null
+                0x0A => Value::Null,
+                // Regex
                 0x0B => {
-                    // Regex
                     let value = self.parse_regex(i);
                     i += value.0.len() + 1 + value.1.len() + 1;
                     Value::Regex(value.0, value.1)
                 }
+                // DBPointer
                 0x0C => {
-                    // DBPointer
                     let value = self.parse_db_pointer(i);
                     i += value.0.len() + 1 + 12;
                     Value::DBPointer(value.0, value.1)
                 }
+                // JavaScriptCode
                 0x0D => {
-                    // JavaScriptCode
                     let value = self.parse_java_script_code(i);
                     i += 1 + name.len() + 1 + value.len() + 1;
                     Value::JavaScriptCode(value)
                 }
+                // Symbol
                 0x0E => {
-                    // Symbol
                     let value = self.parse_symbol(i);
                     i += value.len() + 1;
                     Value::Symbol(value)
                 }
+                // JavaScriptCodeWithScope
                 0x0F => {
-                    // JavaScriptCodeWithScope
-                    // let value = self.parse_java_script_code_with_scope(i + 1 + name.len() + 1);
-                    // println!("name: {:?}, value: {:?}", name, value);
-                    // i += 1 + name.len() + 1 + value.0.len() + 1 + value.1.len() + 1;
-                    // Value::JavaScriptCodeWithScope(value.0, value.1)
-                    todo!()
+                    let value = self.parse_java_script_code_with_scope(i + 1 + name.len() + 1);
+                    println!("name: {:?}, value: {:?}", name, value);
+                    i += value.0.len() + 1 + /* TODO: value.1.len() + */ 1;
+                    Value::JavaScriptCodeWithScope(value.0, value.1)
                 }
+                // Int32
                 0x10 => {
-                    // Int32
                     let value = self.parse_int32(i);
                     i += 4;
                     Value::Int32(value)
                 }
+                // Timestamp
                 0x11 => {
-                    // Timestamp
                     let value = self.parse_timestamp(i);
                     i += 8;
                     Value::Timestamp(value)
                 }
+                // Int64
                 0x12 => {
-                    // Int64
                     let value = self.parse_int64(i);
                     i += 8;
                     Value::Int64(value)
                 }
+                // Decimal128
                 0x13 => {
-                    // Decimal128
                     // let value = self.parse_decimal128(i + 1 + name.len() + 1);
                     // println!("name: {:?}, value: {:?}", name, value);
                     // i += 1 + name.len() + 1 + 16;
                     // Value::Decimal128(value)
                     todo!()
                 }
+                // MinKey
                 0xFF => {
-                    // MinKey
                     i += 1 + name.len() + 1;
                     Value::MinKey
                 }
+                // MaxKey
                 0x7F => {
-                    // MaxKey
                     i += 1 + name.len() + 1;
                     Value::MaxKey
                 }
@@ -273,10 +266,9 @@ impl<'a> Bson<'a> {
     }
 
     pub fn parse_java_script_code_with_scope(&self, i: usize) -> (String, Document) {
-        // let code = self.parse_java_script_code(i);
-        // let scope = self.parse_document(i + code.len() + 1);
-        // (code, scope)
-        todo!()
+        let code = self.parse_java_script_code(i);
+        let scope = self.parse_document(i + code.len() + 1);
+        (code, scope)
     }
 
     pub fn parse_int32(&self, i: usize) -> i32 {
@@ -306,14 +298,6 @@ impl<'a> Bson<'a> {
     // pub fn parse_decimal128(&self, i: usize) -> Decimal128 {
     //     todo!()
     // }
-
-    pub fn parse_min_key(&self, i: usize) {
-        todo!()
-    }
-
-    pub fn parse_max_key(&self, i: usize) {
-        todo!()
-    }
 }
 
 #[cfg(test)]

@@ -1,8 +1,8 @@
-use std::{collections::HashMap, fmt};
+use std::fmt;
 
 use crate::types::Bson;
 
-use super::{Document, Value};
+use super::Document;
 
 pub struct OpQuery<'a> {
     pub bytes: &'a [u8],
@@ -154,10 +154,14 @@ mod test {
             99, 111, 109, 112, 114, 101, 115, 115, 105, 111, 110,
             0, // field name (compression)
             17, 0, 0, 0, // document size (17)
-            2, 48, 0, 5, 0, 0, 0, 110, 111, 110, 101, 0, 0, 0,
+            2, // type 2 (0x02) - string
+            48, 0, // field name (0)
+            5, 0, 0, 0, // string size (5)
+            110, 111, 110, 101, 0, // string value (none)
+            0, // end of document
+            0, // end of document
         ];
         let op_query = OpQuery::new(&data);
-
         println!("doc: {:#?}", op_query);
     }
 }
