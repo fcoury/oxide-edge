@@ -313,7 +313,7 @@ mod test {
             0x06, 0x00, 0x00, 0x00, 0x77, 0x6f, 0x72, 0x6c, 0x64, 0x00, // field value "world"
             0x00, // 0x00 = type EOO ('end of object')
         ];
-        let doc = Bson::new(&data).parse();
+        let doc = Bson::from_bytes(&data).parse();
         println!("doc: {:#?}", doc);
     }
 
@@ -334,7 +334,7 @@ mod test {
             0x00, // 0x00 = type EOO (end of object) for nested document
             0x00, // 0x00 = type EOO (end of object) for the outer document
         ];
-        let doc = Bson::new(&data).parse();
+        let doc = Bson::from_bytes(&data).parse();
         println!("doc: {:#?}", doc);
     }
 }
