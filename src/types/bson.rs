@@ -83,8 +83,8 @@ impl<'a> Bson<'a> {
                     i += size;
                     Value::Array(Array::from_document(value))
                 }
+                // Binary
                 0x05 => {
-                    // Binary
                     let value = self.parse_binary(i);
                     i += value.len() + 1;
                     Value::Binary(value)
@@ -104,11 +104,7 @@ impl<'a> Bson<'a> {
                     // Boolean
                     let value = self.parse_boolean(i);
                     i += 1;
-                    if value {
-                        Value::True
-                    } else {
-                        Value::False
-                    }
+                    Value::Boolean(value)
                 }
                 0x09 => {
                     // UTCDateTime

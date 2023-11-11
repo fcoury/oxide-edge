@@ -25,8 +25,7 @@ pub enum Value {
     Binary(Vec<u8>),                           // \x05
     Undefined,                                 // \x06
     ObjectId(Vec<u8>),                         // \x07
-    False,                                     // \x08
-    True,                                      // \x08
+    Boolean(bool),                             // \x08
     UtcDateTime(u64),                          // \x09
     Null,                                      // \x0A
     Regex(String, String),                     // \x0B
