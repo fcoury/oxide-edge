@@ -4,11 +4,24 @@ use std::collections::HashMap;
 pub struct Document(pub HashMap<String, Value>);
 
 #[derive(Debug)]
+pub struct Array(pub Vec<Value>);
+
+impl Array {
+    pub fn from_document(d: Document) -> Self {
+        let mut array = Vec::new();
+        for (_, value) in d.0 {
+            array.push(value);
+        }
+        Self(array)
+    }
+}
+
+#[derive(Debug)]
 pub enum Value {
     Double(f64),                               // \x01
     String(String),                            // \x02
     Document(Document),                        // \x03
-    Array(Vec<Value>),                         // \x04
+    Array(Array),                              // \x04
     Binary(Vec<u8>),                           // \x05
     Undefined,                                 // \x06
     ObjectId(Vec<u8>),                         // \x07

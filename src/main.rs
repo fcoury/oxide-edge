@@ -83,7 +83,7 @@ fn client(stream: Arc<TcpStream>, tx: mpsc::Sender<Message>) -> Result<()> {
         addr,
     })?;
 
-    let mut buffer = [0; 512];
+    let mut buffer = [0; 1024];
     loop {
         let n = stream.as_ref().read(&mut buffer)?;
         if n > 0 {

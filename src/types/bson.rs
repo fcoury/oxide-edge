@@ -1,5 +1,7 @@
 use std::collections::HashMap;
 
+use crate::types::document::Array;
+
 use super::{Document, Value};
 
 pub struct Bson<'a> {
@@ -69,17 +71,17 @@ impl<'a> Bson<'a> {
                     i += size;
                     Value::Document(value)
                 }
+                // Array
                 0x04 => {
-                    // Array
-                    // let len = i32::from_le_bytes(
-                    //     self.bytes[i + 1 + name.len() + 1..i + 1 + name.len() + 1 + 4]
-                    //         .try_into()
-                    //         .expect("message is well formed"),
-                    // ) as usize;
-                    // let value = self.parse_document(i + 1 + name.len() + 1 + 4);
-                    // println!("name: {:?}, value: {:?}", name, value);
-                    // i += 1 + name.len() + 1 + len + 1 + 4;
-                    todo!("Array")
+                    let size = i32::from_le_bytes(
+                        self.bytes[i..i + 4]
+                            .try_into()
+                            .expect("message is well formed"),
+                    ) as usize;
+                    let start = i + 4;
+                    let value = self.parse_document(start);
+                    i += size;
+                    Value::Array(Array::from_document(value))
                 }
                 0x05 => {
                     // Binary
