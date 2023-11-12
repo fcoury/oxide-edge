@@ -1,8 +1,6 @@
 use std::fmt;
 
-use crate::types::Bson;
-
-use super::Document;
+use crate::bson::{Bson, Document};
 
 pub struct OpQuery<'a> {
     pub bytes: &'a [u8],

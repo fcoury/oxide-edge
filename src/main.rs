@@ -7,6 +7,7 @@ use std::{
     thread,
 };
 
+mod bson;
 mod error;
 mod types;
 

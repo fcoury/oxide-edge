@@ -1,8 +1,12 @@
 use std::collections::HashMap;
 
-use crate::types::document::Array;
+mod array;
+mod document;
+mod value;
 
-use super::{Document, Value};
+pub use array::Array;
+pub use document::Document;
+pub use value::Value;
 
 pub struct Bson<'a> {
     bytes: &'a [u8],
